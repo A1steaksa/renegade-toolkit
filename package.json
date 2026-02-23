@@ -32,9 +32,23 @@
                 "command": "renegade-toolkit.debug",
                 "title": "Run Renegade Debug"
             }
-        ]
+        ],
+        "configuration": {
+            "title": "Renegade Porting Toolkit Configuration",
+            "properties": {
+                "renegade-toolkit.LuaPath": {
+                    "type": "string",
+                    "default" : "./",
+                    "description": "The path where the project's Lua files are located.  This directory should end with 'lua/'"
+                },
+                "renegade-toolkit.CppPath": {
+                    "type": "string",
+                    "default" : "./",
+                    "description": "The path where the project's C++ files are located.  This directory should contain a directory called 'Code'"
+                }
+            }
+        }
     },
-    
     "scripts": {
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
