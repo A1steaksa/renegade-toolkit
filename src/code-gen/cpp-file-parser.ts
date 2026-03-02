@@ -3,9 +3,8 @@ import { error, log } from "console";
 import * as fs from "fs";
 import * as vscode from "vscode";
 import { CppClass } from "./cpp-types";
-import { Exception } from "handlebars";
 
-class FileNotFoundException extends Exception {
+class FileNotFoundError extends Error {
     constructor( filePath: string ) {
         super( "File not found: '" + filePath + "'" );
     }
@@ -51,7 +50,7 @@ export class CppFileParser {
 
         const headerSymbols = await this.getHeaderSymbols();
         if( headerSymbols === undefined ) {
-            throw new FileNotFoundException( "Header" );
+            throw new FileNotFoundError( "Header" );
         }
 
         // Create CPP class objects for each class in the header document
@@ -69,7 +68,7 @@ export class CppFileParser {
                     const cppSymbols = await this.getCppSymbols();
                     
                     if( cppSymbols === undefined ){
-                        throw new Exception( "Could not retrieve CPP symbols when finding classes" );
+                        throw new Error( "Could not retrieve CPP symbols when finding classes" );
                     }
                     
                     cppSymbols

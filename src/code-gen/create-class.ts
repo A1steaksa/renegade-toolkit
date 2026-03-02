@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { CommandBase } from "./command-base";
+import { CommandBase } from "../command-base";
 
 
 export class CreateClassCommand extends CommandBase {

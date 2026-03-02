@@ -11,14 +11,15 @@
     ],
     "activationEvents": [
         "onLanguage:lua",
-        "onLanguage:cpp"
+        "onLanguage:cpp",
+        "onStartupFinished"
     ],
     "main": "./out/extension.js",
     "contributes": {
         "commands": [
             {
-                "command": "renegade-toolkit.importScanLuaFiles",
-                "title": "Scan Lua files for importable classes and libraries"
+                "command": "renegade-toolkit.addImport",
+                "title": "Adds an import to a Lua file"
             },
             {
                 "command": "renegade-toolkit.createClass",
@@ -31,20 +32,74 @@
             {
                 "command": "renegade-toolkit.debug",
                 "title": "Run Renegade Debug"
+            },
+            
+            {
+                "command": "renegade-toolkit.switchToHeader",
+                "title": "Switch to Header",
+                "icon": "./resources/switch-to-header-icon.svg",
+                "enablement": "renegade-toolkit.enableSwitchToHeader"
+            },
+            {
+                "command": "renegade-toolkit.switchToCpp",
+                "title": "Switch to C++",
+                "icon": "./resources/switch-to-c-icon.svg",
+                "enablement": "renegade-toolkit.enableSwitchToCpp"
+            },
+            {
+                "command": "renegade-toolkit.switchToLua",
+                "title": "Switch to Lua",
+                "icon": "./resources/switch-to-lua-icon.svg",
+                "enablement": "renegade-toolkit.enableSwitchToLua"
             }
         ],
+
+        "menus": {
+            "editor/title":[
+                {
+                    "command": "renegade-toolkit.switchToHeader",
+                    "group": "navigation",
+                    "when": "renegade-toolkit.showSwitchToHeader"
+                },
+                {
+                    "command": "renegade-toolkit.switchToCpp",
+                    "group": "navigation",
+                    "when": "renegade-toolkit.showSwitchToCpp"
+                },
+                {
+                    "command": "renegade-toolkit.switchToLua",
+                    "group": "navigation",
+                    "when": "renegade-toolkit.showSwitchToLua"
+                }
+            ]
+        },
+
         "configuration": {
             "title": "Renegade Porting Toolkit Configuration",
             "properties": {
-                "renegade-toolkit.LuaPath": {
+                "renegade-toolkit.CppWorkspaceFolderName": {
+                    "order": 1,
                     "type": "string",
-                    "default" : "./",
-                    "description": "The path where the project's Lua files are located.  This directory should end with 'lua/'"
+                    "default" : "CnC_Renegade",
+                    "markdownDescription": "The name of the VSCode workspace folder that contains the project's C++ components"
                 },
-                "renegade-toolkit.CppPath": {
+                "renegade-toolkit.CppCodeRoot": {
+                    "order": 2,
                     "type": "string",
-                    "default" : "./",
-                    "description": "The path where the project's C++ files are located.  This directory should contain a directory called 'Code'"
+                    "default" : "",
+                    "markdownDescription": "The path from the C++ Workspace directory to the directory containing the `Code/` directory"
+                },
+                "renegade-toolkit.LuaWorkspaceFolderName": {
+                    "order": 3,
+                    "type": "string",
+                    "default" : "renegade",
+                    "markdownDescription": "The name of the VSCode workspace folder that contains the project's Lua components"
+                },
+                "renegade-toolkit.LuaAddonPath": {
+                    "order": 4,
+                    "type": "string",
+                    "default" : "renegade/lua/renegade",
+                    "markdownDescription": "The path from the `garrysmod/` directory to the lua directory containing the Renegade `code/` directory"
                 }
             }
         }
