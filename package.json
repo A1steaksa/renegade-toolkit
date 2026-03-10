@@ -18,9 +18,15 @@
     "contributes": {
         "commands": [
             {
-                "command": "renegade-toolkit.addImport",
-                "title": "Adds an import to a Lua file"
+                "command": "renegade-toolkit.addClassImport",
+                "title": "Adds a class import to a Lua file"
             },
+            {
+                "command": "renegade-toolkit.addEnumImport",
+                "title": "Adds an enum import to a Lua file"
+            },
+
+            
             {
                 "command": "renegade-toolkit.createClass",
                 "title": "Create New Class"
@@ -29,11 +35,14 @@
                 "command": "renegade-toolkit.createClassFromJson",
                 "title": "Create New Class from Json"
             },
+
+            
             {
                 "command": "renegade-toolkit.debug",
                 "title": "Run Renegade Debug"
             },
             
+
             {
                 "command": "renegade-toolkit.switchToHeader",
                 "title": "Switch to Header",
@@ -73,6 +82,12 @@
                 }
             ]
         },
+        "submenus": [
+            {
+                "id": "renegade-toolkit.switchToLuaSubmenu",
+                "label": "Lua files implementing this file"
+            }
+        ],
 
         "configuration": {
             "title": "Renegade Porting Toolkit Configuration",

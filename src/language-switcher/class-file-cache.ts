@@ -1,9 +1,7 @@
 import * as vscode from 'vscode';
 import { Module } from '../module';
 import { LuaScanner } from '../file-scanner/lua-scanner';
-import { CppScanner as CppScanner } from '../file-scanner/cpp-scanner';
-import { HeaderScanner } from '../file-scanner/header-scanner';
-
+import { config } from '../extension';
 
 export class LuaBasedOn {
     constructor( public className: string, public filePath: string ) { }
@@ -21,7 +19,7 @@ export class ClassFileCache extends Module {
 
     private static fileConnectionCache: FileConnection[];
 
-    public static override initialize( context: vscode.ExtensionContext, config: vscode.WorkspaceConfiguration ): void {
+    public static override initialize( context: vscode.ExtensionContext ): void {
         this.fileConnectionCache = [];
 
         const workspaceFolderName = config.get<string>( "CppWorkspaceFolderName" );
@@ -54,12 +52,12 @@ export class ClassFileCache extends Module {
         }
 
         LuaScanner.addCallback( ( file, fileContent ) => {
-            this.handleLuaFile( file, fileContent );
+            this.handleLuaFileChange( file, fileContent );
         } );
     }
 
 
-    private static async handleLuaFile( luaFile: vscode.Uri, fileContent: string ) {
+    private static async handleLuaFileChange( luaFile: vscode.Uri, fileContent: string ) {
 
         // Figure out which C++ file(s) the Lua was based on
         const luaBasedOn = this.getLuaBasedOnClassFile( luaFile, fileContent );

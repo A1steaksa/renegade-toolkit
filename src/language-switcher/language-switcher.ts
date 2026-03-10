@@ -10,7 +10,6 @@ enum FileType {
 
 export class LanguageSwitcher extends Module {
 
-
     static headerFileToOpen: vscode.Uri | undefined;
     static cppFileToOpen: vscode.Uri | undefined;
     static luaFileToOpen: vscode.Uri | undefined;
@@ -27,10 +26,10 @@ export class LanguageSwitcher extends Module {
         [ FileType.Lua    ]: "renegade-toolkit.enableSwitchToLua"
     };
 
-    static initialize( context: vscode.ExtensionContext, config: vscode.WorkspaceConfiguration ){
+    static initialize( context: vscode.ExtensionContext ){
 
         // Monitor Lua and C++ files for connections between them
-        ClassFileCache.initialize( context, config );
+        ClassFileCache.initialize( context );
 
         // Monitor active editor document changes to enable/disable the switching buttons
         LanguageSwitcher.setupEditorWatchers( context );
@@ -142,18 +141,22 @@ export class LanguageSwitcher extends Module {
         this.setButtonVisibility( FileType.Lua, true );
     }
 
-    static switchToCpp( file: vscode.Uri ){
-        if( LanguageSwitcher.cppFileToOpen === undefined ){
-            vscode.window.showErrorMessage( "Couldn't switch to C++ file because we don't know which one to open!" );
-            return;
-        }
-
-        vscode.workspace.openTextDocument( LanguageSwitcher.cppFileToOpen ).then(
+    static switchToFile( file: vscode.Uri ){
+        vscode.workspace.openTextDocument( file ).then(
             ( document ) => {
                 vscode.window.showTextDocument( document );
             },
             () => {}
         );
+    }
+
+    static switchToCpp(){
+        if( LanguageSwitcher.cppFileToOpen === undefined ){
+            vscode.window.showErrorMessage( "Couldn't switch to C++ file because we don't know which one to open!" );
+            return;
+        }
+
+        LanguageSwitcher.switchToFile( LanguageSwitcher.cppFileToOpen );
     }
 
     static switchToHeader(){
@@ -162,26 +165,16 @@ export class LanguageSwitcher extends Module {
             return;
         }
 
-        vscode.workspace.openTextDocument( LanguageSwitcher.headerFileToOpen ).then(
-            ( document ) => {
-                vscode.window.showTextDocument( document );
-            },
-            () => {}
-        );
+        LanguageSwitcher.switchToFile( LanguageSwitcher.headerFileToOpen );
     }
 
-    static switchToLua( file: vscode.Uri ){
+    static switchToLua(){
 
         if( LanguageSwitcher.luaFileToOpen === undefined ){
             vscode.window.showErrorMessage( "Couldn't switch to Lua file because we don't know which one to open!" );
             return;
         }
 
-        vscode.workspace.openTextDocument( LanguageSwitcher.luaFileToOpen ).then(
-            ( document ) => {
-                vscode.window.showTextDocument( document );
-            },
-            () => {}
-        );
+        LanguageSwitcher.switchToFile( LanguageSwitcher.luaFileToOpen );
     }    
 }

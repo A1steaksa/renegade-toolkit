@@ -1,10 +1,34 @@
 
 import * as vscode from 'vscode';
-import { LuaImportCache } from './import-cache';
+import { LuaImportableCache } from './importable-class-cache';
+import { LuaEnum } from './importables/lua-enum';
+import { LuaClass } from './importables/lua-class';
     
 export class LuaImportAction implements vscode.CodeActionProvider {
 
     private static luaGlobalVariableNamePattern = /\`\w+\`/gm;
+
+    public static createClassImportCommand( document: vscode.TextDocument, importable: LuaClass ): vscode.Command {
+        return {
+            title: "Import " + importable.getName() + " from " + importable.getImportPath() + "?" ,
+            command: "renegade-toolkit.addClassImport",
+            arguments: [
+                document,
+                importable
+            ]
+        };
+    }
+
+    public static createEnumImportCommand( document: vscode.TextDocument, importable: LuaEnum ): vscode.Command {
+        return {
+            title: "Import " + importable.getName() + " from " + importable.getContainingClass().getName() + "?" ,
+            command: "renegade-toolkit.addEnumImport",
+            arguments: [
+                document,
+                importable
+            ]
+        };
+    }
 
     provideCodeActions( document: vscode.TextDocument, range: vscode.Range | vscode.Selection, context: vscode.CodeActionContext, token: vscode.CancellationToken ): vscode.ProviderResult<( vscode.CodeAction | vscode.Command )[]> {
         let missingVariableName = this.getMissingVariableName( context );
@@ -12,24 +36,31 @@ export class LuaImportAction implements vscode.CodeActionProvider {
             return;
         }
 
-        // Ensure the first variable character is capitalized so it matches Lua class names
-        missingVariableName = missingVariableName.substring( 0, 1 ).toUpperCase() + missingVariableName.substring( 1 );
+        const actions: vscode.Command[] = [];
 
-        // Check if the missing variable matches an importable
-        const importableForVariable = LuaImportCache.getImportableByClassName( missingVariableName );
-        if( importableForVariable === undefined ){
-            return;
+        // Class imports
+        const luaClasses = LuaImportableCache.findLuaClassesByName( missingVariableName );
+        for (let classIndex = 0; classIndex < luaClasses.length; classIndex++) {
+            const luaClass = luaClasses[classIndex];
+            
+            actions.push(
+                LuaImportAction.createClassImportCommand( document, luaClass )
+            );
         }
 
-        const handlers: vscode.Command[] = [ {
-            title: "Import " + importableForVariable.className + " from " + importableForVariable.importPath + "?" ,
-            command: "renegade-toolkit.addImport",
-            arguments: [
-                document,
-                importableForVariable
-            ]
-        } ];
-        return handlers;
+        // Enum imports
+        const luaEnums = LuaImportableCache.findLuaEnumsByName( missingVariableName );
+        for (let enumIndex = 0; enumIndex < luaEnums.length; enumIndex++) {
+            const luaEnum = luaEnums[enumIndex];
+
+            actions.push(
+                LuaImportAction.createEnumImportCommand( document, luaEnum )
+            );
+        }
+
+        if( actions.length !== 0 ){
+            return actions;
+        }
     }
 
     private getMissingVariableName( context: vscode.CodeActionContext ): string | undefined {

@@ -1,8 +1,9 @@
 
 import * as vscode from 'vscode';
 import { Module } from '../module';
+import { config } from '../extension';
 
-type FileScanCallback = ( uri: vscode.Uri, fileContent: string ) => void;
+type FileChangeCallback = ( uri: vscode.Uri, fileContent: string ) => void;
 
 /**
  * Responsible for scanning through one of the project's workspace directories and extracting data from them that is used by other modules
@@ -16,12 +17,13 @@ export abstract class FileScanner extends Module {
     protected static fileNameFilter: string;
 
     
-    protected static fileScanCallbacks: FileScanCallback[];
+    protected static fileScanCallbacks: FileChangeCallback[];
+    protected static fileChangeCallbacks: FileChangeCallback[];
 
     private static workspaceName: string;
     private static scanPath: vscode.RelativePattern;
 
-    public static override initialize( context: vscode.ExtensionContext, config: vscode.WorkspaceConfiguration ){
+    public static override initialize( context: vscode.ExtensionContext ){
 
         this.fileScanCallbacks = [];
 
@@ -56,6 +58,12 @@ export abstract class FileScanner extends Module {
     private static setupFileWatchers() {
         const fileWatcher = vscode.workspace.createFileSystemWatcher( this.scanPath, false, false, false );
 
+        vscode.workspace.onDidRenameFiles( ( event ) => {
+            event.files.forEach( fileChange => {
+                
+            } );
+        } );
+
         fileWatcher.onDidChange( ( fileUri ) => {
             this.scanFiles( [fileUri] );
         } );
@@ -71,15 +79,34 @@ export abstract class FileScanner extends Module {
         } );
     }
 
-    public static addCallback( callback: FileScanCallback ){
+    public static addCallback( callback: FileChangeCallback ){
         this.fileScanCallbacks.push( callback );
     }
 
-    public static removeCallback( callback: FileScanCallback ){
+    public static removeCallback( callback: FileChangeCallback ){
         const index = this.fileScanCallbacks.indexOf( callback );
         if( index >= 0 ){
             this.fileScanCallbacks.splice( index, 1 );
         }
+    }
+
+    private static async getFileContent( file: vscode.Uri ) : Promise<string | undefined> {
+        const fileContentBytes = await vscode.workspace.fs.readFile( file );
+        return fileContentBytes.toString();
+    }
+
+    private static sendFileChangeCallbacks( files: vscode.Uri[] ){
+
+        files.forEach( file => {
+            const fileContent = FileScanner.getFileContent( file );
+            if( fileContent !== undefined ){
+                FileScanner.fileChangeCallbacks
+            }
+
+
+
+        } );
+
     }
 
     private static scanFiles( files: vscode.Uri[] ) {
