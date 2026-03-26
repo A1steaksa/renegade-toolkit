@@ -17,7 +17,7 @@ export class LuaImportableClassScanner extends Module {
     public static initialize( context: vscode.ExtensionContext ){
         LuaImportableClassScanner.luaAddonPath = config.get<string>( "LuaAddonPath" )!.trim().toLowerCase();
 
-        LuaScanner.addCallback( ( file, fileContent ) => {
+        LuaScanner.addFileChangeCallback( ( file, fileContent ) => {
             LuaImportableClassScanner.scanLuaFile( file, fileContent );
         } );
     }

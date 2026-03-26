@@ -1,6 +1,16 @@
 import * as vscode from 'vscode';
 import { CommandBase } from "../command-base";
 
+export class LuaClassDefinition {
+    constructor(
+        public name:         string,
+        public parentNames:  string[] | undefined,
+        public luaPath:      string,
+        public cppClassName: string | undefined,
+    ){
+    }
+
+}
 
 export class CreateClassCommand extends CommandBase {
 

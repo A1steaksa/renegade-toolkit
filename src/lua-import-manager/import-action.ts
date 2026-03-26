@@ -10,7 +10,7 @@ export class LuaImportAction implements vscode.CodeActionProvider {
 
     public static createClassImportCommand( document: vscode.TextDocument, importable: LuaClass ): vscode.Command {
         return {
-            title: "Import " + importable.getName() + " from " + importable.getImportPath() + "?" ,
+            title: "Import " + importable.getStaticName() + " from " + importable.getImportPath() + "?" ,
             command: "renegade-toolkit.addClassImport",
             arguments: [
                 document,
@@ -21,7 +21,7 @@ export class LuaImportAction implements vscode.CodeActionProvider {
 
     public static createEnumImportCommand( document: vscode.TextDocument, importable: LuaEnum ): vscode.Command {
         return {
-            title: "Import " + importable.getName() + " from " + importable.getContainingClass().getName() + "?" ,
+            title: "Import " + importable.getStaticName() + " from " + importable.getContainingClass().getStaticName() + "?" ,
             command: "renegade-toolkit.addEnumImport",
             arguments: [
                 document,

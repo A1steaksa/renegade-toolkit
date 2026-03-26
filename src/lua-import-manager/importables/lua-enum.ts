@@ -1,4 +1,4 @@
-import { TextUtils } from "../../text-utils";
+import { TextUtils } from "../../utils/text-utils";
 import { LuaClass } from "./lua-class";
 import { LuaImportable } from "./lua-importable";
 import * as vscode from 'vscode';
@@ -15,7 +15,7 @@ export class LuaEnum extends LuaImportable {
         this.containingClass = containingClass;
     }
 
-    public getName(): string {
+    public getStaticName(): string {
         return this.name;
     }
 
@@ -40,11 +40,10 @@ export class LuaEnum extends LuaImportable {
     }
 
     getImportString(): string {
-        const indentString = LuaImportable.getIndentString( 1 );
-        const classVariableName = TextUtils.uncapitalize( this.containingClass.getName() );
+        const classVariableName = TextUtils.uncapitalize( this.containingClass.getStaticName() );
         const enumStaticVariableName = TextUtils.camelCaseToUnderscoreCapitals( this.name );
 
-        return indentString + "local " + this.getVariableName() + " = " + classVariableName + "." + enumStaticVariableName;
+        return "local " + this.getVariableName() + " = " + classVariableName + "." + enumStaticVariableName;
     }
     
     equals( other: any ): boolean {

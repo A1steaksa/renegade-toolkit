@@ -6,8 +6,5 @@
 		{
 			"path": "../../test folder"
 		}
-	],
-    "settings": {
-        "typescript.tsc.autoDetect": "off"
-    }
+	]
 }

@@ -27,14 +27,14 @@ export class LuaImportCompletion implements vscode.CompletionItemProvider {
             }
 
             const classImportCompletionItem = new vscode.CompletionItem(
-                luaClass.getName(),
+                luaClass.getStaticName(),
                 vscode.CompletionItemKind.Class
             );
 
             classImportCompletionItem.filterText = triggerWord;
             classImportCompletionItem.command = LuaImportAction.createClassImportCommand( document, luaClass );
             classImportCompletionItem.insertText = luaClass.getVariableName();
-            classImportCompletionItem.detail = `Import ${luaClass.getName()} from ${luaClass.getImportPath()}`;
+            classImportCompletionItem.detail = `Import ${luaClass.getStaticName()} from ${luaClass.getImportPath()}`;
 
             importCommands.push( classImportCompletionItem );
         }
@@ -52,14 +52,14 @@ export class LuaImportCompletion implements vscode.CompletionItemProvider {
             }
 
             const enumImportCompletionItem = new vscode.CompletionItem(
-                luaEnum.getName(),
+                luaEnum.getStaticName(),
                 vscode.CompletionItemKind.Enum
             );
 
             enumImportCompletionItem.filterText = triggerWord;
             enumImportCompletionItem.command = LuaImportAction.createEnumImportCommand( document, luaEnum );
             enumImportCompletionItem.insertText = luaEnum.getVariableName();
-            enumImportCompletionItem.detail = `Import ${luaEnum.getName()} from ${luaEnum.getContainingClass().getName()}`;
+            enumImportCompletionItem.detail = `Import ${luaEnum.getStaticName()} from ${luaEnum.getContainingClass().getStaticName()}`;
 
             importCommands.push( enumImportCompletionItem );
         }

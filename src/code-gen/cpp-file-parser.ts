@@ -18,9 +18,6 @@ export class CppFileParser {
     private headerSymbols: vscode.DocumentSymbol[] | undefined;
     private cppSymbols: vscode.DocumentSymbol[] | undefined;
 
-    /**
-     * @param file Either a .cpp or .h file path
-     */
     constructor( headerDocument: vscode.TextDocument, cppDocument: vscode.TextDocument | undefined ) {
         this.headerDocument = headerDocument;
         this.cppDocument = cppDocument;

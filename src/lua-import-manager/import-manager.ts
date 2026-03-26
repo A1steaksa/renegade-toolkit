@@ -5,15 +5,18 @@ import { LuaImportableCache } from './importable-class-cache';
 import { LuaImportAction } from './import-action';
 import { LuaImportableClassScanner } from './importable-class-scanner';
 import { LuaImportCompletion } from './import-completion';
-import { TextUtils } from '../text-utils';
-import { disconnect } from 'process';
+import { TextUtils } from '../utils/text-utils';
 import { LuaClass } from './importables/lua-class';
 import { LuaEnum } from './importables/lua-enum';
+import { RegionUtils } from '../utils/region-utils';
 
 export class LuaImportManager extends Module {
 
     private static importedClassNamePattern = /---\s*@type\s*([A-z0-9]+)/gm;
     private static importedEnumNamePattern = /=\s+[a-zA-Z0-9]+\.([A-Z_]+)/gm;
+
+    private static classImportsRegionName = "Imports";
+    private static enumImportsRegionName  = "Imported Enums";
 
     public static override initialize( context: vscode.ExtensionContext ) {
 
@@ -32,7 +35,7 @@ export class LuaImportManager extends Module {
             }
         );
 
-        // enum import command
+        // Enum import command
         const enumImportDisposable = vscode.commands.registerCommand(
             "renegade-toolkit.addEnumImport",
             ( document: vscode.TextDocument, luaEnum: LuaEnum ) => {
@@ -41,22 +44,6 @@ export class LuaImportManager extends Module {
         );
 
         context.subscriptions.push( classImportDisposable, enumImportDisposable );
-    }
-
-    public static getImportsRange( document: vscode.TextDocument ): vscode.Range {
-        const range = TextUtils.getRegionContentRange( document, "Imports" );
-        if( range === undefined ){
-            throw new Error( "Imports region is missing from '" + document.uri.path + "'" );
-        }
-        return range;
-    }
-
-    public static getImportedEnumsRange( document: vscode.TextDocument ): vscode.Range {
-        const range = TextUtils.getRegionContentRange( document, "Imported Enums" );
-        if( range === undefined ){
-            throw new Error( "Imported Enums region is missing from '" + document.uri.path + "'" );
-        }
-        return range;
     }
 
     /**
@@ -88,18 +75,17 @@ export class LuaImportManager extends Module {
             }
         }
 
-        const importedClassesRange = this.getImportsRange( document );
-        const importedEnumsRange = this.getImportedEnumsRange( document );
-
         const edit = new vscode.WorkspaceEdit();
         
         // Class imports
-        const classImportsString = this.createClassImportsString( importedClasses );
-        edit.replace( document.uri, importedClassesRange, classImportsString );
+        let classImportsContent = this.createClassImportsString( importedClasses );
+        classImportsContent = TextUtils.indentAll( classImportsContent, 1 );
+        RegionUtils.setRegionContents( edit, document, this.classImportsRegionName, classImportsContent );
 
         // Enum imports
-        const enumImportsString = this.createEnumImportsString( importedEnums );
-        edit.replace( document.uri, importedEnumsRange, enumImportsString );
+        let enumImportsContent = this.createEnumImportsString( importedEnums );
+        enumImportsContent = TextUtils.indentAll( enumImportsContent, 1 );
+        RegionUtils.setRegionContents( edit, document, this.enumImportsRegionName, enumImportsContent );
 
         vscode.workspace.applyEdit( edit );
     }
@@ -138,13 +124,14 @@ export class LuaImportManager extends Module {
 
     /** Creates an indented, multi-line sequence of import statements */
     public static createEnumImportsString( importableEnums: LuaEnum[] ) : string {
-        let importsString = "\n";
+        let importsString = "";
 
         importableEnums.forEach( ( importableEnum, index ) => {
             importsString += importableEnum.getImportString();
 
             const isLastIndex = index === ( importableEnums.length - 1 );
             if( !isLastIndex ){
+                // Enums are packed tightly without empty lines between them
                 importsString += "\n";
             }
         } );
@@ -152,18 +139,18 @@ export class LuaImportManager extends Module {
         return importsString;
     }
 
-    /** Creates an indented, multi-line sequence of import statements for a given array of LuaImportables */
-    public static createClassImportsString( importableClasses: LuaClass[] ) : string {
-        let importsString = "\n";
+    /** Creates an indented, multi-line sequence of import statements */
+    public static createClassImportsString( luaClasses: LuaClass[] ) : string {
+        let importsString = "";
 
-        importableClasses.forEach( ( importableClass, index ) => {
-            importsString += importableClass.getImportString();
+        luaClasses.forEach( ( luaClass, index ) => {
+            importsString += luaClass.getImportString();
 
-            const isLastIndex = index === ( importableClasses.length - 1 );
+            const isLastIndex = index === ( luaClasses.length - 1 );
             if( !isLastIndex ){
+                // Classes are packed loosly and have an empty line between them
                 importsString += "\n\n";
             }
-
         } );
 
         return importsString;
@@ -262,7 +249,7 @@ export class LuaImportManager extends Module {
     public static getImportedEnumNames( document: vscode.TextDocument ) : string[] {
         let enumNames: string[] = [];
 
-        const importedEnumsString = document.getText( TextUtils.getRegionContentRange( document, "Imported Enums" ) );
+        const importedEnumsString = document.getText( RegionUtils.getRegionContentRange( document, this.enumImportsRegionName ) );
         
         let match: RegExpExecArray | null = this.importedEnumNamePattern.exec( importedEnumsString );
         while( match !== null ){
@@ -279,7 +266,7 @@ export class LuaImportManager extends Module {
     public static getImportedClassNames( document: vscode.TextDocument ) : string[] {
         let classNames: string[] = [];
 
-        const importsString = document.getText( TextUtils.getRegionContentRange( document, "Imports" ) );
+        const importsString = document.getText( RegionUtils.getRegionContentRange( document, this.classImportsRegionName ) );
 
         let match: RegExpExecArray | null = this.importedClassNamePattern.exec( importsString );
         while( match !== null ){ 

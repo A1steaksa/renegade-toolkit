@@ -54,7 +54,6 @@ export class CodeGen extends Module {
                     saveLocation = classDefinitionFilePaths[0];
                 }
 
-
                 if( saveLocation === undefined ) {
                     vscode.window.showInformationMessage( "Class creation aborted" );
                     return;

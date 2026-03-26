@@ -51,7 +51,7 @@ export class ClassFileCache extends Module {
             return;
         }
 
-        LuaScanner.addCallback( ( file, fileContent ) => {
+        LuaScanner.addFileChangeCallback( ( file, fileContent ) => {
             this.handleLuaFileChange( file, fileContent );
         } );
     }

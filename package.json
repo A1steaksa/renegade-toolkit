@@ -92,6 +92,12 @@
         "configuration": {
             "title": "Renegade Porting Toolkit Configuration",
             "properties": {
+                "renegade-toolkit.CppClassCacheFile": {
+                    "order": 0,
+                    "type": "string",
+                    "default": ".vscode/cpp-class-cache.json",
+                    "markdownDescription": "The file path where C++ class information should be cached within the Lua Workspace Folder"
+                },
                 "renegade-toolkit.CppWorkspaceFolderName": {
                     "order": 1,
                     "type": "string",

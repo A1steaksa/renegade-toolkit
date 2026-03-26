@@ -1,4 +1,4 @@
-import { TextUtils } from "../text-utils";
+import { TextUtils } from "../utils/text-utils";
 import { LuaClass } from "./importables/lua-class";
 import { LuaEnum } from "./importables/lua-enum";
 
@@ -24,10 +24,27 @@ export class LuaImportableCache {
 
         for( let index = 0; index < this.importableClasses.length; index++ ){
             const luaClass = this.importableClasses[index];
-            if( luaClass.getName().toLowerCase() === className ){
+            if( luaClass.getStaticName().toLowerCase() === className ){
                 return luaClass;
             }
         }
+    }
+    
+    public static getLuaClassesByNames( classNames: string[] ): LuaClass[] {
+        const classes: LuaClass[] = [];
+
+        for (let classNameIndex = 0; classNameIndex < classNames.length; classNameIndex++) {
+            const className = classNames[classNameIndex];
+            const luaClass = LuaImportableCache.getLuaClassByName( className );
+
+            if( luaClass === undefined ){
+                throw new Error( `Unable to find Lua class '${className}'` );
+            }
+
+            classes.push( luaClass );
+        }
+
+        return classes;
     }
 
     /** Retrieves an enum from a case-insensitive name */
@@ -36,7 +53,7 @@ export class LuaImportableCache {
 
         for( let index = 0; index < this.importableEnums.length; index++ ){
             const luaEnum = this.importableEnums[index];
-            if( luaEnum.getName().toLowerCase() === enumName ){
+            if( luaEnum.getStaticName().toLowerCase() === enumName ){
                 return luaEnum;
             }
         }
