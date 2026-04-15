@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
-import fs from 'fs';
 import Handlebars from "handlebars";
 import { Module } from '../module';
-import { FunctionSection, LuaClassDefinition } from './lua-class-definition';
+import { LuaFunctionSection, LuaClassDefinition, LuaFunction } from './lua-class-definition';
 import { TextUtils } from '../utils/text-utils';
 import { LuaClass } from '../lua-import-manager/importables/lua-class';
 import { LuaImportableCache } from '../lua-import-manager/importable-class-cache';
@@ -12,6 +11,7 @@ import { FileUtils } from '../utils/file-utils';
 import { LuaImportManager } from '../lua-import-manager/import-manager';
 import { LuaGenerationUtils } from './lua-generation-utils';
 import { WindowUtils } from '../utils/window-utils';
+import { CppClassTranslator } from './cpp-class-translator';
 
 export class LuaClassCreation implements Module {
 
@@ -37,27 +37,20 @@ export class LuaClassCreation implements Module {
     private static cppWorkspaceFolderName: string | undefined;
     private static luaWorkspaceFolderName: string | undefined;
 
-
     public static initialize( context: vscode.ExtensionContext ){
         CppClassCache.initialize( context );
 
-        // Create Class from JSON
+        // Create Lua Class from JSON Class Definition
         const createClassFromJsonDisposable = vscode.commands.registerCommand(
-            "renegade-toolkit.createClassFromJson",
+            "renegade-toolkit.createLuaFromJson",
             async () => {
                 const editor = vscode.window.activeTextEditor;
-                if( editor === undefined ) {
-                    return;
-                }
+                if( editor === undefined ) { return; }
                 
                 const documentLanguage = editor.document.languageId;
-                if( documentLanguage !== "json" ) {
-                    return;
-                }
+                if( documentLanguage !== "json" ) { return; }
 
-                const rawJson = fs.readFileSync( editor.document.uri.fsPath ).toString();
-
-                const classDefinition = LuaClassDefinition.fromJson( rawJson );
+                const classDefinition = LuaClassDefinition.deserializeFromJsonUri( editor.document.uri );
 
                 const createdClass = await this.createClass( classDefinition );
 
@@ -65,7 +58,70 @@ export class LuaClassCreation implements Module {
             }
         );
 
-        context.subscriptions.push( createClassFromJsonDisposable );    
+        // Create JSON Class Definition from Header
+        const createClassFromHeaderDisposable = vscode.commands.registerCommand(
+            "renegade-toolkit.createJsonFromHeader",
+            async () => {
+                const editor = vscode.window.activeTextEditor;
+                if( editor === undefined ) { return; }
+                if( editor.document.languageId !== "cpp" ) { return; }                
+                if( !editor.document.fileName.endsWith( ".h" ) ){ return; }
+
+                // Get a list of the classes the file contains
+                const classesInFile = CppClassCache.getClassesByUri( editor.document.uri );
+                if( classesInFile.length === 0 ){
+                    vscode.window.showErrorMessage( "There are no classes in this file!" );
+                    return;
+                }
+
+                // Determine which class within the header file is being created
+                let classToCreate: string | undefined;
+                if( classesInFile.length === 1 ){
+                    // If there's only one class in the header file, don't bother asking
+                    classToCreate = classesInFile[0].name;
+                }else{
+                    // Create a list of class names within the file
+                    const classNames = [];
+                    for (let classIndex = 0; classIndex < classesInFile.length; classIndex++) {
+                        const classOption = classesInFile[classIndex];
+                        classNames.push( classOption.name );
+                    }
+            
+                    // Prompt the user to pick one of the class names
+                    classToCreate = await vscode.window.showQuickPick( classNames, { title: "Select Class to Create", canPickMany: false, ignoreFocusOut: true } );
+                }
+                if( classToCreate === undefined ){
+                    vscode.window.showErrorMessage( "Canceling class creation" );
+                    return;
+                }
+
+                // Create a C++ class definition
+                const cppClassDefinition = await CppClassTranslator.createCppClassDefinition( editor.document, classToCreate );
+                if( cppClassDefinition === undefined ){
+                    vscode.window.showErrorMessage( `Failed to create C++ class definition for ${classToCreate}` );
+                    return;
+                }
+
+                // Convert C++ class definition to Lua class definition
+                const luaClassDefinition = LuaClassDefinition.fromCppClassDefinition( cppClassDefinition );
+
+                // Create the file path where the class definition file should be saved
+                const rootSavePath = FileUtils.relativeLuaWorkspacePathToUri( ConfigUtils.getString( "LuaClassDefinitionRootPath" ) );
+
+                const cppClassPath = this.createCppClassPath( luaClassDefinition.CppName );
+                const luaclassPath = cppClassPath.substring( 0, cppClassPath.lastIndexOf( "/" ) + 1 ).toLowerCase();
+                
+                const fileName = luaClassDefinition.FileName + ".class.json";
+
+                const savePath = vscode.Uri.joinPath( rootSavePath, luaclassPath, fileName );
+
+                await FileUtils.write( savePath, luaClassDefinition.serializeToJson() );
+
+                WindowUtils.showFile( savePath );
+            }
+        );
+
+        context.subscriptions.push( createClassFromHeaderDisposable, createClassFromJsonDisposable );    
     }
 
     private static async loadTemplate(){
@@ -82,6 +138,8 @@ export class LuaClassCreation implements Module {
     public static async createClass( classDefinition: LuaClassDefinition ) : Promise<vscode.Uri> {
         await this.loadTemplate();
 
+        const templateInput: any = {};
+
         const baseName = this.createBaseName( classDefinition.Name );
         const parents = this.getParentClasses( classDefinition.ParentNames );
 
@@ -89,41 +147,12 @@ export class LuaClassCreation implements Module {
         const instanceClassName = baseName + this.instanceClassPostfix;
         const robustClassName = this.robustClassPrefix + baseName;
 
-        let luaFilePath = this.createLuaPath( classDefinition.CppName, classDefinition.FileName );
-
-        console.log( staticClassName, instanceClassName, robustClassName );
-        
-        console.log( "Parent Classes:" );
-        parents.forEach( parentClass => {
-            console.log( `    ${parentClass.getStaticName()}` );
-        });
-
-        console.log( `Lua File Path: '${luaFilePath}'` );
-        
-        console.log( "Static Fields:" );
-        classDefinition.Static.Fields.forEach( field => {
-            console.log( `    ${field}` );
-        });
-
-        console.log( "Static Functions:" );
-        classDefinition.Static.Functions.forEach( func => {
-            console.log( `    ${func}` );
-        });
-
-        if( classDefinition.Instance !== undefined ){    
-            console.log( "Instance Fields:" );
-            classDefinition.Instance.Fields.forEach( field => {
-                console.log( `    ${field}` );
-            });
-
-            console.log( "Instance Functions:" );
-            classDefinition.Instance.Functions.forEach( func => {
-                console.log( `    ${func}` );
-            });
-        }
+        templateInput.BaseClassName = baseName;
+        templateInput.StaticClassName = staticClassName;
+        templateInput.InstanceClassName = instanceClassName;
+        templateInput.RobustClassName = robustClassName;
 
     // #region "Based On" header comment
-
         const cppClassName = classDefinition.CppName;
         const cppClass = CppClassCache.getClassByName( cppClassName );
         if( cppClass === undefined ){
@@ -138,13 +167,18 @@ export class LuaClassCreation implements Module {
         }else{
             throw new Error( `Found CPP Class Cache entry for class '${cppClassName}' but it has neither a header nor cpp file` );
         }
+
+        templateInput.CppClassName = cppClassName,
+        templateInput.CppFilePath = cppFilePath;
     // #endregion
         
 
     // #region Parents
-
         // Multiline import statements for the parent(s) of the class (if any)
-        const parentImportsString = LuaImportManager.createClassImportsString( parents );
+        let parentImportsString = LuaImportManager.createClassImportsString( parents );
+        if( parentImportsString.length !== 0 ){
+            parentImportsString = "\n" + parentImportsString;
+        }
 
         // Parent classes for the static LuaLS @class defintion
         let luaLanguageServerStaticParents = "";
@@ -152,12 +186,16 @@ export class LuaClassCreation implements Module {
         // Parent classes for the instance LuaLS @class defintion
         let luaLanguageServerInstanceParents = "";
 
-        // Parameters to CNC.CreateExport to establish inheritance to
+        // Parameters to CNC.CreateExport to establish inheritance
         let createExportParentsString = "";
+
+        // Part of the robustclass.Register input string to establish inheritance
+        let robustClassParentsString = "";
 
         if( parents.length !== 0 ){
             luaLanguageServerStaticParents = " : ";
             luaLanguageServerInstanceParents = " : ";
+            robustClassParentsString = " : ";
 
             for (let parentIndex = 0; parentIndex < parents.length; parentIndex++) {
                 const parent = parents[parentIndex];
@@ -165,15 +203,23 @@ export class LuaClassCreation implements Module {
                 luaLanguageServerStaticParents += parent.getStaticName();
                 luaLanguageServerInstanceParents += parent.getInstanceName();
                 createExportParentsString += parent.getVariableName();
+                robustClassParentsString += parent.getRobustClassName();
 
                 if( parentIndex !== parents.length - 1 ){
                     luaLanguageServerStaticParents += ", ";
                     luaLanguageServerInstanceParents += ", ";
                     createExportParentsString += ", ";
+                    robustClassParentsString += ", ";
                 }
             }
             createExportParentsString = " " + createExportParentsString +  " ";
         }
+
+        templateInput.ParentImports = parentImportsString;
+        templateInput.CreateExportParents = createExportParentsString;
+        templateInput.LuaLanguageServerStaticParents = luaLanguageServerStaticParents;
+        templateInput.LuaLanguageServerInstanceParents = luaLanguageServerInstanceParents;
+        templateInput.RobustClassParents = robustClassParentsString;
     // #endregion
 
 
@@ -182,81 +228,58 @@ export class LuaClassCreation implements Module {
         // Currently a placeholder for later expansion
         let classImportsString = "";
         let enumImportsString = "";
+
+        templateInput.ClassImports = classImportsString;
+        templateInput.EnumImports = enumImportsString;
     // #endregion
 
+    // #region Instance
+        if( classDefinition.Instance !== undefined ){
+            // Fields
+            let instanceFieldsString = LuaGenerationUtils.createFields( classDefinition.Instance.Fields );
+            if( instanceFieldsString.length !== 0 ){
+                instanceFieldsString += "\n";
+            }
+
+            // Functions
+            let instanceFunctionsString = this.createInstanceFunctions( classDefinition.Instance.Functions, robustClassName );
+
+            templateInput.InstanceFields = instanceFieldsString;
+            templateInput.InstanceFunctions = instanceFunctionsString;
+        }
+        templateInput.IsStaticOnly = templateInput.InstanceFields === undefined;
+    // #endregion
 
     // #region Static
 
+        const indentStatics = !templateInput.IsStaticOnly;
+
         // Fields
-        let staticFieldsString = "";
-        const staticFieldCount = classDefinition.Static.Fields.length;
-        for (let staticFieldIndex = 0; staticFieldIndex < staticFieldCount; staticFieldIndex++) {
-            const field = classDefinition.Static.Fields[staticFieldIndex];
-            staticFieldsString += LuaGenerationUtils.createField( field );
-            if( staticFieldIndex !== staticFieldCount - 1 ){
-                staticFieldsString += "\n";
+        const staticFields = classDefinition.Static.Fields;
+        let staticFieldsString = LuaGenerationUtils.createFields( staticFields );
+        if( staticFields.length !== 0 ){
+            if( indentStatics ){
+                staticFieldsString = TextUtils.indentAll( staticFieldsString );
             }
-        }
-        if( staticFieldsString.length !== 0 ){
-            staticFieldsString = TextUtils.indentAll( staticFieldsString );
+            staticFieldsString += "\n";
         }
 
         // Functions
-        let staticFunctionsString = this.createStaticFunctions( classDefinition.Static.Functions );
-    // #endregion
-
-
-    // #region Instance
-
-        // Fields
-        let instanceFieldsString = "";
-        const instanceFieldCount = classDefinition.Instance.Fields.length;
-        for (let instanceFieldIndex = 0; instanceFieldIndex < instanceFieldCount; instanceFieldIndex++) {
-            const field = classDefinition.Instance.Fields[instanceFieldIndex];
-            instanceFieldsString += LuaGenerationUtils.createField( field );
-            if( instanceFieldIndex !== instanceFieldCount - 1 ){
-                instanceFieldsString += "\n";
-            }
+        const staticFunctions = classDefinition.Static.Functions;
+        let staticFunctionsString = this.createStaticFunctions( staticFunctions );
+        if( indentStatics && staticFunctions.length !== 0 ){
+            staticFunctionsString = TextUtils.indentAll( staticFunctionsString );
         }
 
-        // Functions
-        let instanceFunctionsString = this.createInstanceFunctions( classDefinition.Instance.Functions, robustClassName );
+        templateInput.StaticFields = staticFieldsString;
+        templateInput.StaticFunctions = staticFunctionsString;
     // #endregion
-
-        const templateInput = {
-            // "Based On" header comment
-            CppClassName: cppClassName,
-            CppFilePath: cppFilePath,
-
-            // Parents
-            ParentImports: parentImportsString,
-            CreateExportParents: createExportParentsString,
-            LuaLanguageServerStaticParents: luaLanguageServerStaticParents,
-            LuaLanguageServerInstanceParents: luaLanguageServerInstanceParents,
-
-            // Imports
-            ClassImports: classImportsString,
-            EnumImports: enumImportsString,
-
-            // Class Names
-            BaseClassName: baseName,
-            StaticClassName: staticClassName,
-            InstanceClassName: instanceClassName,
-            RobustClassName: robustClassName,
-
-            // Static
-            StaticFields: staticFieldsString,
-            StaticFunctions: staticFunctionsString,
-
-            // Instance
-            InstanceFields: instanceFieldsString,
-            InstanceFunctions: instanceFunctionsString,
-        };
 
         // Create the class contents
         const classContent = this.template( templateInput );
 
         // Save the content to its file
+        let luaFilePath = this.createLuaPath( classDefinition.CppName, classDefinition.FileName );
         await FileUtils.write( luaFilePath, classContent );
 
         return luaFilePath;
@@ -264,7 +287,7 @@ export class LuaClassCreation implements Module {
 
 // #region Class Component Generators
 
-    private static createStaticFunctions( functions: (string|FunctionSection)[] ) : string {
+    private static createStaticFunctions( functions: (LuaFunction|LuaFunctionSection)[] ) : string {
         let results = "";
 
         const functionCount = functions.length;
@@ -273,14 +296,12 @@ export class LuaClassCreation implements Module {
         }
 
         // We need an empty line between typecheck registration and the first static function
-        results = "\n" + this.createStaticFunctions( functions );
-
-        results = TextUtils.indentAll( results );
+        results = "\n" + LuaGenerationUtils.createStaticFunctions( functions );
         
         return results;
     }
 
-    private static createInstanceFunctions( functions: (string|FunctionSection)[], constructorName: string ) : string {
+    private static createInstanceFunctions( functions: (LuaFunction|LuaFunctionSection)[], constructorName: string ) : string {
         let results = "";
 
         const functionCount = functions.length;
@@ -289,7 +310,7 @@ export class LuaClassCreation implements Module {
         }
 
         // Swap the constructor name in for the "Constructor" function name
-        functions = this.replaceConstructor( functions, constructorName );
+        functions = this.replaceConstructorDestructor( functions, constructorName );
 
         // We need an empty line between typecheck registration and the first static function
         results = "\n" + LuaGenerationUtils.createInstanceFunctions( functions );
@@ -300,22 +321,30 @@ export class LuaClassCreation implements Module {
     /**
      * Finds any instance of a function called "Constructor" and replaces it with the provided constructor name
      */
-    private static replaceConstructor( functions: (string|FunctionSection)[], constructorName: string ) :  (string|FunctionSection)[] {
+    private static replaceConstructorDestructor( functions: (LuaFunction|LuaFunctionSection)[], constructorName: string ) :  (LuaFunction|LuaFunctionSection)[] {
         for (let functionIndex = 0; functionIndex < functions.length; functionIndex++) {
             const entry = functions[functionIndex];
-            
+
             // Function name
-            if( typeof entry === "string" ){
+            if( (entry as LuaFunction).params !== undefined ){
+                const luaFunction = (entry as LuaFunction);
+
                 // Swap the "Constructor" entry for the constructor name
-                if( entry === "Constructor" ){
-                    functions[functionIndex] = constructorName;
-                    return functions;
+                if( luaFunction.name.toLowerCase() === "constructor" ){
+                    luaFunction.name = constructorName;
+                    functions[functionIndex] = luaFunction;
+                }
+
+                // Swap the "Destructor" entry for the destructor name
+                if( luaFunction.name.toLowerCase() === "destructor" ){
+                    luaFunction.name = "__delete";
+                    functions[functionIndex] = luaFunction;
                 }
 
             // Sections
-            }else if( entry as FunctionSection ){
-                entry.Functions = this.replaceConstructor( entry.Functions, constructorName );
-
+            }else if( (entry as LuaFunctionSection).Functions !== undefined ){
+                const luaFunctionSection = (entry as LuaFunctionSection);
+                luaFunctionSection.Functions = this.replaceConstructorDestructor( luaFunctionSection.Functions, constructorName );
             }else{
                 throw new Error( `Function entry ${functionIndex} was neither a string nor an object` );
             }
@@ -403,6 +432,9 @@ export class LuaClassCreation implements Module {
 
         // Add the Lua file name
         path = `${path}/${luaFileName}.lua`;
+
+        // Add the addon path portion
+        path = `lua/renegade/${path}`;
 
         return FileUtils.relativeLuaWorkspacePathToUri( path );
     }

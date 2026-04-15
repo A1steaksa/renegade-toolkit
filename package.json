@@ -18,6 +18,11 @@
     "contributes": {
         "commands": [
             {
+                "command": "renegade-toolkit.debug",
+                "title": "Run Renegade Debug"
+            },
+
+            {
                 "command": "renegade-toolkit.addClassImport",
                 "title": "Adds a class import to a Lua file"
             },
@@ -26,22 +31,18 @@
                 "title": "Adds an enum import to a Lua file"
             },
 
-            
             {
                 "command": "renegade-toolkit.createClass",
                 "title": "Create New Class"
             },
             {
-                "command": "renegade-toolkit.createClassFromJson",
-                "title": "Create New Class from Json"
+                "command": "renegade-toolkit.createLuaFromJson",
+                "title": "Create Lua Class from JSON Class Definition"
             },
-
-            
             {
-                "command": "renegade-toolkit.debug",
-                "title": "Run Renegade Debug"
+                "command": "renegade-toolkit.createJsonFromHeader",
+                "title": "Create JSON Class Definition from C++ Header"
             },
-            
 
             {
                 "command": "renegade-toolkit.switchToHeader",
@@ -62,9 +63,8 @@
                 "enablement": "renegade-toolkit.enableSwitchToLua"
             }
         ],
-
         "menus": {
-            "editor/title":[
+            "editor/title": [
                 {
                     "command": "renegade-toolkit.switchToHeader",
                     "group": "navigation",
@@ -88,7 +88,6 @@
                 "label": "Lua files implementing this file"
             }
         ],
-
         "configuration": {
             "title": "Renegade Porting Toolkit Configuration",
             "properties": {
@@ -101,26 +100,32 @@
                 "renegade-toolkit.CppWorkspaceFolderName": {
                     "order": 1,
                     "type": "string",
-                    "default" : "CnC_Renegade",
+                    "default": "CnC_Renegade",
                     "markdownDescription": "The name of the VSCode workspace folder that contains the project's C++ components"
                 },
                 "renegade-toolkit.CppCodeRoot": {
                     "order": 2,
                     "type": "string",
-                    "default" : "",
+                    "default": "",
                     "markdownDescription": "The path from the C++ Workspace directory to the directory containing the `Code/` directory"
                 },
                 "renegade-toolkit.LuaWorkspaceFolderName": {
                     "order": 3,
                     "type": "string",
-                    "default" : "renegade",
+                    "default": "renegade",
                     "markdownDescription": "The name of the VSCode workspace folder that contains the project's Lua components"
                 },
                 "renegade-toolkit.LuaAddonPath": {
                     "order": 4,
                     "type": "string",
-                    "default" : "renegade/lua/renegade",
+                    "default": "renegade/lua/renegade",
                     "markdownDescription": "The path from the `garrysmod/` directory to the lua directory containing the Renegade `code/` directory"
+                },
+                "renegade-toolkit.LuaClassDefinitionRootPath": {
+                    "order": 4,
+                    "type": "string",
+                    "default": "class-definitions/",
+                    "markdownDescription": "The path from the Lua Workspace Folder to the directory containing all Lua `*.class.json` definition files"
                 }
             }
         }
@@ -137,13 +142,14 @@
         "@types/mocha": "^10.0.10",
         "@types/node": "22.x",
         "@types/vscode": "^1.107.0",
-        "@vscode/test-cli": "^0.0.12",
+        "@vscode/test-cli": "^0.0.11",
         "@vscode/test-electron": "^2.5.2",
         "eslint": "^9.39.2",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.54.0"
     },
     "dependencies": {
+        "@hediet/node-reload": "^0.10.0",
         "handlebars": "^4.7.8"
     }
 }

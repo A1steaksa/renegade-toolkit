@@ -7,6 +7,7 @@ export class LuaClass extends LuaImportable {
     
     private static luaAddonPath: string;
 
+    private baseName: string;
     private staticName: string;
     private instanceName: string;
     private containingFile: vscode.Uri;
@@ -23,8 +24,13 @@ export class LuaClass extends LuaImportable {
     constructor( staticName: string, containingFile: vscode.Uri ) {
         super();
 
-        this.staticName = TextUtils.capitalize( staticName );
-        this.instanceName = TextUtils.removeEndings( this.staticName, ["Class"] ) + "Instance";
+        this.baseName = TextUtils.removeEndings(
+            TextUtils.capitalize( staticName ),
+            ["Class", "Instance"]
+        );
+
+        this.staticName = this.baseName + "Class";
+        this.instanceName = this.baseName + "Instance";
 
         this.containingFile = containingFile;
     }
@@ -62,6 +68,10 @@ export class LuaClass extends LuaImportable {
         }
 
         return importPath;
+    }
+
+    public getRobustClassName(): string {
+        return `Renegade_` + this.baseName;
     }
 
     public getVariableName(): string {

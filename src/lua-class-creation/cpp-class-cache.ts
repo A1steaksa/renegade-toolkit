@@ -7,6 +7,7 @@ import { config } from '../extension';
 import { ConfigUtils } from '../utils/config-utils';
 import { FileUtils } from '../utils/file-utils';
 import { FileScanner } from '../file-scanner/file-scanner';
+import { TextUtils } from '../utils/text-utils';
 
 /**
  * The classes that are saved and loaded from the CPP Class Cache file.  
@@ -51,8 +52,8 @@ class CppClassFileCacheEntry{
     }
 
     public static relativePathToUri( relativePath: string ): vscode.Uri {
-        if( this.cppWorkspaceFolder === undefined ){
-            const cppWorkspaceName = config.get<string>( "LuaWorkspaceFolderName" );
+        if( this.cppWorkspaceFolder === undefined || this.cppWorkspaceName === undefined ){
+            const cppWorkspaceName = config.get<string>( "CppWorkspaceFolderName" );
             if( cppWorkspaceName === undefined ){
                 throw new Error( "Unable to retrieve CPP Workspace Name from config" );
             }
@@ -70,6 +71,8 @@ class CppClassFileCacheEntry{
                 throw new Error( `No workspace folder matches expected CPP Workspace Name from config: '${cppWorkspaceName}'` );
             }
         }
+
+        relativePath = TextUtils.removeBeginnings( relativePath, [this.cppWorkspaceName] );
 
         return vscode.Uri.joinPath( this.cppWorkspaceFolder.uri, relativePath );
     }
@@ -272,5 +275,19 @@ export class CppClassCache extends Module {
                 return cppClass;
             }
         }
+    }
+
+    public static getClassesByUri( uri: vscode.Uri ) : CppCachedClass[] {
+        const classes: CppCachedClass[] = [];
+
+        for( let classIndex = 0; classIndex < this.cppClassCache.length; classIndex++ ){
+            const cppClass = this.cppClassCache[classIndex];
+
+            if( cppClass.cppFile?.path === uri.path || cppClass.headerFile?.path === uri.path ){
+                classes.push( cppClass );
+            }
+        }
+
+        return classes;
     }
 }
