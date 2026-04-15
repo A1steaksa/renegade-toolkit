@@ -11,8 +11,16 @@ export class FileUtils {
     private static luaWorkspaceFolderName: string;
     private static luaWorkspaceFolder: vscode.WorkspaceFolder;
 
+    private static luaAddonPath: string;
 
 // #region Accessors
+
+    private static getLuaAddonPath(): string {
+        if( this.luaAddonPath === undefined ){
+            this.luaAddonPath = ConfigUtils.getString( "LuaAddonPath" );
+        }
+        return this.luaAddonPath;
+    }
 
     private static getCppWorkspaceFolderName() : string {
         if( this.cppWorkspaceFolderName === undefined ){
