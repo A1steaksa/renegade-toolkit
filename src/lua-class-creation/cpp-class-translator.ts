@@ -322,10 +322,19 @@ export class CppClassTranslator {
         // the format is: struct <name> { <struct fields> } <field name>;
         const isStructDeclarator = TextUtils.containsAll( fieldText, "struct", "{", "}" );
         if( isStructDeclarator ){
-            console.log( fieldText );
+            // Get the name of the struct as the field's data type
+            const structNameMatches = /struct\s+(\w+)/g.exec( fieldText );
+            if( structNameMatches === undefined || structNameMatches!.length < 2 || structNameMatches === null ){
+                throw new Error( `Unable to find struct name in field: ${fieldText}` );
+            }
+            fieldDataType = structNameMatches[1];
 
-
-
+            // Get the name of the field that uses this struct as its data type
+            const fieldNameMatches = /}\s+(\w+)/g.exec( fieldText );
+            if( fieldNameMatches === undefined || fieldNameMatches!.length < 2 || fieldNameMatches === null ){
+                throw new Error( `Unable to find field name in field: ${fieldText}` );
+            }
+            fieldName = fieldNameMatches[1];
         }else{
             // "Normal" field definitions whose format is:
             // <data type> <field name>;
@@ -344,7 +353,7 @@ export class CppClassTranslator {
 
             // Remove prefixes
             if( isStatic ) {
-                fieldText = fieldText.substring( "static".length + 1 );
+                fieldText = TextUtils.removeBeginnings( fieldText, ["static"] );
             }
 
             const lastSpaceIndex = fieldText.lastIndexOf( " " );
