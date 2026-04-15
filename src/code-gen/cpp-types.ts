@@ -42,8 +42,6 @@ export class CppFunction {
         this.textDocument = textDocument;
 
         this.text = textDocument.getText( symbol.range );
-
-        console.log( this.text );
     }
 }
 

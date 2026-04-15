@@ -12,11 +12,7 @@ export class LuaImportableClassScanner extends Module {
     private static luaClassNamePattern = /--- @class\s+(\w+(?:Class|Lib|Ids?))/m;
     private static luaEnumNamePattern = /--+\s*@enum\s+(\w+)/gm;
 
-    private static luaAddonPath: string;
-
     public static initialize( context: vscode.ExtensionContext ){
-        LuaImportableClassScanner.luaAddonPath = config.get<string>( "LuaAddonPath" )!.trim().toLowerCase();
-
         LuaScanner.addFileChangeCallback( ( file, fileContent ) => {
             LuaImportableClassScanner.scanLuaFile( file, fileContent );
         } );
