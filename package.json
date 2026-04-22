@@ -64,6 +64,16 @@
             }
         ],
         "menus": {
+            "commandPalette": [
+                {
+                    "command": "renegade-toolkit.createLuaFromJson",
+                    "when": "resourceFilename =~ /.+\\.class\\.json/"
+                },
+                {
+                    "command": "renegade-toolkit.createJsonFromHeader",
+                    "when": "resourceFilename =~ /.+\\.h/"
+                }
+            ],
             "editor/title": [
                 {
                     "command": "renegade-toolkit.switchToHeader",
