@@ -319,9 +319,9 @@ export class LuaClassCreation implements Module {
     }
 
     /**
-     * Finds any instance of a function called "Constructor" and replaces it with the provided constructor name
+     * Finds any instance of a function called "Constructor" and "Destructor" and replaces them using the provided RobustClass name
      */
-    private static replaceConstructorDestructor( functions: (LuaFunction|LuaFunctionSection)[], constructorName: string ) :  (LuaFunction|LuaFunctionSection)[] {
+    private static replaceConstructorDestructor( functions: (LuaFunction|LuaFunctionSection)[], robustClassName: string ) :  (LuaFunction|LuaFunctionSection)[] {
         for (let functionIndex = 0; functionIndex < functions.length; functionIndex++) {
             const entry = functions[functionIndex];
 
@@ -331,20 +331,20 @@ export class LuaClassCreation implements Module {
 
                 // Swap the "Constructor" entry for the constructor name
                 if( luaFunction.name.toLowerCase() === "constructor" ){
-                    luaFunction.name = constructorName;
+                    luaFunction.name = robustClassName;
                     functions[functionIndex] = luaFunction;
                 }
 
                 // Swap the "Destructor" entry for the destructor name
                 if( luaFunction.name.toLowerCase() === "destructor" ){
-                    luaFunction.name = "__delete";
+                    luaFunction.name = "_" + robustClassName;
                     functions[functionIndex] = luaFunction;
                 }
 
             // Sections
             }else if( (entry as LuaFunctionSection).Functions !== undefined ){
                 const luaFunctionSection = (entry as LuaFunctionSection);
-                luaFunctionSection.Functions = this.replaceConstructorDestructor( luaFunctionSection.Functions, constructorName );
+                luaFunctionSection.Functions = this.replaceConstructorDestructor( luaFunctionSection.Functions, robustClassName );
             }else{
                 throw new Error( `Function entry ${functionIndex} was neither a string nor an object` );
             }
