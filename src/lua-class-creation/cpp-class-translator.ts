@@ -10,6 +10,7 @@ export enum CppAccessType { Public, Private, Protected }
 export class CppClassDefinition {
     constructor(
         public name: string,
+        public headerPath: string,
         public parents: CppClassParentDefinition[],
         public staticFields: CppFieldDefinition[],
         public staticFunctions: CppFunctionDefinition[],
@@ -36,9 +37,9 @@ export class CppArgumentDefinition {
 
 export class CppClassTranslator {
 
-    public static async translateClass( document: vscode.TextDocument, className: string ) {
+    public static async translateClass( cppDocument: vscode.TextDocument, className: string ) {
         // Get C++ class
-        const cppClassDefinition = await this.createCppClassDefinition( document, className );
+        const cppClassDefinition = await this.createCppClassDefinition( cppDocument, className );
         if( cppClassDefinition === undefined ){
             throw new Error( `Unable to translate CPP class '${className}' to Lua.  Failed to create CPP class definition.` );
         }
@@ -162,7 +163,7 @@ export class CppClassTranslator {
             }
         }
 
-        return new CppClassDefinition( className, parents, staticFields, staticFunctions, instanceFields, instanceFunctions );
+        return new CppClassDefinition( className, document.uri.path, parents, staticFields, staticFunctions, instanceFields, instanceFunctions );
     }
 
     private static createClassParentDefinitions( classBody: string ) : CppClassParentDefinition[] {

@@ -82,7 +82,7 @@ export class FileUtils {
 
 // #region Path Conversions
 
-    public static uriToRelativeCppWorkspacePath( uri: vscode.Uri ){
+    public static uriToRelativeCppWorkspacePath( uri: vscode.Uri|string ){
         let relativePath = vscode.workspace.asRelativePath( uri );
 
         relativePath = TextUtils.removeBeginnings(

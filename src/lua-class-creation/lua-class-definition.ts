@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import fs from 'fs';
 import { TextUtils } from '../utils/text-utils';
 import { CppClassDefinition, CppClassParentDefinition, CppFieldDefinition, CppFunctionDefinition } from './cpp-class-translator';
-import { CreateClassCommand } from '../code-gen/create-class';
+import { FileUtils } from '../utils/file-utils';
 
 export class LuaClassRealm { 
     constructor( public Fields: LuaField[], public Functions: ( LuaFunction | LuaFunctionSection )[] ){
@@ -101,6 +101,7 @@ export class LuaClassDefinition {
         public ParentNames: string[],
         public FileName: string,
         public CppName: string,
+        public CppPath: string,
         public Static: LuaClassRealm,
         public Instance: LuaClassRealm
     ) { }
@@ -114,7 +115,8 @@ export class LuaClassDefinition {
         let definition = {
             Name: parsedJson.Name,
             ParentNames: parentNames,
-            CppName: parsedJson.CppName
+            CppName: parsedJson.CppName,
+            CppPath: parsedJson.CppPath
         } as LuaClassDefinition;
 
         // Use the JSON file name if none was provided explicitly
@@ -202,7 +204,9 @@ export class LuaClassDefinition {
         const instanceFunctions: LuaFunction[] = this.createLuaFunctions( luaClassName, cppClassdefinition.instanceFunctions );
         const instanceRealm = new LuaClassRealm( instanceFields, instanceFunctions );
 
-        return new LuaClassDefinition( luaClassName, parents, fileName, cppClassName, staticRealm, instanceRealm );
+        const cppPath = FileUtils.uriToRelativeCppWorkspacePath( cppClassdefinition.headerPath );
+
+        return new LuaClassDefinition( luaClassName, parents, fileName, cppClassName, cppPath, staticRealm, instanceRealm );
     }
     // #endregion
 

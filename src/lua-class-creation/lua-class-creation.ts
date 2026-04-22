@@ -108,7 +108,8 @@ export class LuaClassCreation implements Module {
                 // Create the file path where the class definition file should be saved
                 const rootSavePath = FileUtils.relativeLuaWorkspacePathToUri( ConfigUtils.getString( "LuaClassDefinitionRootPath" ) );
 
-                const cppClassPath = this.createCppClassPath( luaClassDefinition.CppName );
+                const relativeCppClassFilePath = FileUtils.uriToRelativeCppWorkspacePath( editor.document.uri );
+                const cppClassPath = this.createCppClassPath( luaClassDefinition.CppName, relativeCppClassFilePath );
                 const luaclassPath = cppClassPath.substring( 0, cppClassPath.lastIndexOf( "/" ) + 1 ).toLowerCase();
                 
                 const fileName = luaClassDefinition.FileName + ".class.json";
@@ -135,6 +136,9 @@ export class LuaClassCreation implements Module {
         this.template = Handlebars.compile( classTemplateContents );
     }
 
+    /**
+     * @param cppFile The CPP file that the class is being created based on
+     */
     public static async createClass( classDefinition: LuaClassDefinition ) : Promise<vscode.Uri> {
         await this.loadTemplate();
 
@@ -159,10 +163,8 @@ export class LuaClassCreation implements Module {
             throw new Error( `CPP Class Cache does not contain class '${cppClassName}'` );
         }
         
-        let cppFilePath = FileUtils.uriToRelativeCppWorkspacePath( cppClass.files[0] );
-
         templateInput.CppClassName = cppClassName,
-        templateInput.CppFilePath = cppFilePath;
+        templateInput.CppFilePath = classDefinition.CppPath;
     // #endregion
         
 
@@ -272,7 +274,7 @@ export class LuaClassCreation implements Module {
         const classContent = this.template( templateInput );
 
         // Save the content to its file
-        let luaFilePath = this.createLuaPath( classDefinition.CppName, classDefinition.FileName );
+        let luaFilePath = this.createLuaPath( classDefinition.CppName, classDefinition.CppPath, classDefinition.FileName );
         await FileUtils.write( luaFilePath, classContent );
 
         return luaFilePath;
@@ -412,9 +414,9 @@ export class LuaClassCreation implements Module {
 
 // #region Paths
 
-    private static createLuaPath( cppClassName: string, luaFileName: string ): vscode.Uri {
+    private static createLuaPath( cppClassName: string, relativeCppClassFilePath: string, luaFileName: string ): vscode.Uri {
         // Start with the CPP path
-        let path = this.createCppClassPath( cppClassName );
+        let path = this.createCppClassPath( cppClassName, relativeCppClassFilePath );
 
         // Lua paths are all lowercase
         path = path.toLowerCase();
@@ -432,7 +434,10 @@ export class LuaClassCreation implements Module {
         return FileUtils.relativeLuaWorkspacePathToUri( path );
     }
 
-    private static createCppClassPath( cppClassName: string ) : string {
+    /**
+     * @param cppClassFile The file that contains the class
+     */
+    public static createCppClassPath( cppClassName: string, relativeCppClassFilePath: string ) : string {
         const cppClass = CppClassCache.getClassByName( cppClassName );
         if( cppClass === undefined ){
             throw new Error( `Unable to find C++ class '${cppClassName}'`  );
@@ -442,9 +447,7 @@ export class LuaClassCreation implements Module {
             throw new Error( `Class '${cppClassName}' has cache entry but no files listed` );
         }
 
-        let file = cppClass.files[0];
-
-        const relativePath = vscode.workspace.asRelativePath( file );
+        const relativePath = vscode.workspace.asRelativePath( relativeCppClassFilePath );
 
         // Remove any workspace folder names from the start of the path
         const classPath = TextUtils.removeBeginnings(
