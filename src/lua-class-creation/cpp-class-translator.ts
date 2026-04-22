@@ -259,6 +259,8 @@ export class CppClassTranslator {
         const argsEndIndex = signature.indexOf( ")" );
         let argsText = signature.substring( argsStartIndex, argsEndIndex );
 
+        const originalArgsText = argsText;
+
         // Remove pointer indicators
         argsText = argsText.replaceAll( /[&*]/g, "" );
 
@@ -271,11 +273,17 @@ export class CppClassTranslator {
         // Remove whitespace around commas
         argsText = argsText.replaceAll( /\s?,\s?/g, "," );
 
-        // Look for unhandled cases
-        if( argsText.indexOf( "<" ) !== -1 || argsText.indexOf( ">" ) !== -1 ) {
-            console.warn( "FOUND WEIRD ARGUMENT" );
-            console.warn( argsText );
-            throw new Error( "FOUND WEIRD ARGUMENT \n" + argsText );
+        // Convert "DynamicVectorClass" generic types into arrays
+        argsText = argsText.replaceAll( /DynamicVectorClass<(\w+)>/g, "$1[]" );
+
+        // Deal with other generic types
+        let genericStartIndex = argsText.indexOf( "<" );
+        let genericEndIndex = argsText.indexOf( ">" );
+        if( genericStartIndex !== -1 || genericEndIndex !== -1 ){
+            console.warn( "UNHANDLED GENERIC ARGUMENT: " );
+            console.warn( "Original: " + originalArgsText );
+            console.warn( "CURRENT: " + argsText );
+            throw new Error( "UNHANDLED GENERIC ARGUMENT: \n" + argsText );
         }
 
         // Create objects for each argument

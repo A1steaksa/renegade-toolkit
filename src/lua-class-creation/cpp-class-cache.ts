@@ -20,35 +20,26 @@ class CppClassFileCacheEntry{
     private static cppWorkspaceName: string;
 
     public static fromCppCachedClass( cachedclass: CppCachedClass ) : CppClassFileCacheEntry {
-        let headerPath: string | undefined;
-        if( cachedclass.headerFile !== undefined ){
-            headerPath = vscode.workspace.asRelativePath( cachedclass.headerFile );
-        }
-
-        let cppPath: string | undefined;
-        if( cachedclass.cppFile !== undefined ){
-            cppPath = vscode.workspace.asRelativePath( cachedclass.cppFile );
+        const paths: string[] = [];
+        for (let fileIndex = 0; fileIndex < cachedclass.files.length; fileIndex++) {
+            const file = cachedclass.files[fileIndex];
+            paths.push( vscode.workspace.asRelativePath( file ) );
         }
 
         return new CppClassFileCacheEntry(
             cachedclass.name,
-            headerPath,
-            cppPath
+            paths
         );
     }
 
     public toCppCachedClass() : CppCachedClass {
-        let header: vscode.Uri | undefined;
-        if( this.header !== undefined ){
-            header = CppClassFileCacheEntry.relativePathToUri( this.header );
+        const paths: vscode.Uri[] = [];
+        for (let pathIndex = 0; pathIndex < this.filePaths.length; pathIndex++) {
+            const path = this.filePaths[pathIndex];
+            paths.push( CppClassFileCacheEntry.relativePathToUri( path ) );
         }
 
-        let cpp: vscode.Uri | undefined;
-        if( this.cpp !== undefined ){
-            cpp = CppClassFileCacheEntry.relativePathToUri( this.cpp );
-        }
-
-        return new CppCachedClass( this.name, header, cpp );
+        return new CppCachedClass( this.name, paths );
     }
 
     public static relativePathToUri( relativePath: string ): vscode.Uri {
@@ -79,8 +70,7 @@ class CppClassFileCacheEntry{
     
     private constructor(
         public name: string,
-        public header: string | undefined,
-        public cpp: string | undefined
+        public filePaths: string[]
     ){}
 }
 
@@ -146,6 +136,22 @@ export class CppClassCache extends Module {
         return fileSymbols;
     }
 
+    private static async addFileToCache( file: vscode.Uri ){
+        // Scan the file for its symbols
+        const fileSymbols = await CppClassCache.getSymbols( file );
+
+        // We only care about classes right now
+        const classSymbols = fileSymbols.filter(
+            file => file.kind === vscode.SymbolKind.Class
+        );
+
+        // Add each of the file's classes to the cache
+        for (let classIndex = 0; classIndex < classSymbols.length; classIndex++) {
+            const classSymbol = classSymbols[classIndex];
+            CppClassCache.storeClass( classSymbol.name, file );
+        }
+    }
+
     private static async buildCache( progress: vscode.Progress<{message: string|undefined, incremenet: number|undefined}>){
         // Empty the cache so we can build it
         CppClassCache.cppClassCache = [];
@@ -158,38 +164,9 @@ export class CppClassCache extends Module {
         for (let fileIndex = 0; fileIndex < filesToScan.length; fileIndex++) {
             const fileToScan = filesToScan[fileIndex];
 
-            // Categorize the file we're scanning as .cpp or .h
-            let headerFile: vscode.Uri | undefined;
-            let cppFile: vscode.Uri | undefined;
-            if( fileToScan.path.endsWith( ".cpp" ) ){
-                cppFile = fileToScan;
-            }else if( fileToScan.path.endsWith( ".h" ) ){
-                headerFile = fileToScan;
-            }else{
-                throw new Error( `Encountered unknown file type while building CPP Class Cache: '${fileToScan.path}'` );
-            }
+            await CppClassCache.addFileToCache( fileToScan );
 
-            // Scan the file for its symbols
-            const fileSymbols = await CppClassCache.getSymbols( fileToScan );
-
-            // We only care about classes right now
-            const classSymbols = fileSymbols.filter(
-                file => file.kind === vscode.SymbolKind.Class
-            );
-
-            // Add each of the file's classes to the cache
-            for (let classIndex = 0; classIndex < classSymbols.length; classIndex++) {
-                const classSymbol = classSymbols[classIndex];
-                
-                CppClassCache.storeClass( classSymbol.name, headerFile, cppFile );
-            }
-
-            // Update the UI to show our progress
-            const message = `${fileIndex}/${filesToScan.length} (${ Math.floor( fileIndex / filesToScan.length * 100 ) }%)`;
-            progress.report( {
-                message: message,
-                incremenet: progressIncrement
-            } );
+            progress.report( { message: `${fileIndex}/${filesToScan.length} (${ Math.floor( ( fileIndex / filesToScan.length ) * 100 ) }%)`, incremenet: progressIncrement } );
         }
 
         // Save the cache to the disk
@@ -242,30 +219,45 @@ export class CppClassCache extends Module {
         vscode.workspace.fs.writeFile( this.cppClassCacheFile, Buffer.from( cacheString ) );
     }
 
-    public static storeClass( name: string, headerFile: vscode.Uri | undefined, cppFile: vscode.Uri | undefined ){
+    public static storeClass( className: string, file: vscode.Uri ){
         // Update an existing entry if one exists
-        for (let cachedClassIndex = 0; cachedClassIndex < this.cppClassCache.length; cachedClassIndex++) {
+        for( let cachedClassIndex = 0; cachedClassIndex < this.cppClassCache.length; cachedClassIndex++ ){
             const cachedClass = this.cppClassCache[cachedClassIndex];
-            if( cachedClass.name === name ){
-                // Update header file
-                if( cachedClass.headerFile === undefined && headerFile !== undefined ){
-                    console.log( `Updating header file for existing entry '${name}'` );
-                    cachedClass.headerFile = headerFile;
-                }
 
-                // Update CPP file
-                if( cachedClass.cppFile === undefined && cppFile !== undefined ){
-                    console.log( `Updating CPP file for existing entry '${name}'` );
-                    cachedClass.cppFile = cppFile;
-                }
-
-                this.cppClassCache[cachedClassIndex] = cachedClass;
-                return;
+            if( cachedClass.name !== className ){
+                continue;
             }
+            
+            // Make sure this file isn't already in the class's file list
+            for( let fileIndex = 0; fileIndex < cachedClass.files.length; fileIndex++ ){
+                const cachedFile = cachedClass.files[fileIndex];
+                if( cachedFile.path === file.path ){
+                    // The file is already cached so we don't need to cache it again
+                    return;
+                }
+            } 
+            
+            // Add the file to the class's file list
+            cachedClass.files.push( file );
+            return;
         }
 
         // Create a new entry if none exists already
-        this.cppClassCache.push( new CppCachedClass( name, headerFile, cppFile ) );
+        this.cppClassCache.push( new CppCachedClass( className, [file] ) );
+    }
+
+    public static cacheContainsFile( file: vscode.Uri ) : boolean {
+        for (let cachedClassIndex = 0; cachedClassIndex < this.cppClassCache.length; cachedClassIndex++) {
+            const cachedClass = this.cppClassCache[cachedClassIndex];
+            for( let fileIndex = 0; fileIndex < cachedClass.files.length; fileIndex++ ){
+                const cachedFile = cachedClass.files[fileIndex];
+                if( cachedFile.path === file.path ){
+                    return true;
+                }
+            } 
+        }
+
+        return false;
     }
 
     public static getClassByName( className: string ): CppCachedClass | undefined {
@@ -277,13 +269,31 @@ export class CppClassCache extends Module {
         }
     }
 
-    public static getClassesByUri( uri: vscode.Uri ) : CppCachedClass[] {
+    public static getClassesByUri( file: vscode.Uri ) : CppCachedClass[] {
+        // Make sure the file is scanned and cached
+        if( !this.cacheContainsFile( file ) ){
+            console.log( `Extending the cache to include ${file.path}` );
+            this.addFileToCache( file );
+            this.saveCache();
+        }
+
         const classes: CppCachedClass[] = [];
 
+        // Find classes with this file in their file lists
         for( let classIndex = 0; classIndex < this.cppClassCache.length; classIndex++ ){
             const cppClass = this.cppClassCache[classIndex];
 
-            if( cppClass.cppFile?.path === uri.path || cppClass.headerFile?.path === uri.path ){
+            let isClassConnectedToFile = false;
+            for (let classFileIndex = 0; classFileIndex < cppClass.files.length; classFileIndex++) {
+                const classFile = cppClass.files[classFileIndex];
+
+                if( classFile.path === file.path ){
+                    isClassConnectedToFile = true;
+                    break;
+                }
+            }
+
+            if( isClassConnectedToFile ){
                 classes.push( cppClass );
             }
         }

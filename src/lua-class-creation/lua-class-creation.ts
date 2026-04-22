@@ -159,14 +159,7 @@ export class LuaClassCreation implements Module {
             throw new Error( `CPP Class Cache does not contain class '${cppClassName}'` );
         }
         
-        let cppFilePath;
-        if( cppClass.headerFile !== undefined ){
-            cppFilePath = FileUtils.uriToRelativeCppWorkspacePath( cppClass.headerFile );
-        }else if( cppClass.cppFile !== undefined ){
-            cppFilePath = FileUtils.uriToRelativeCppWorkspacePath( cppClass.cppFile );
-        }else{
-            throw new Error( `Found CPP Class Cache entry for class '${cppClassName}' but it has neither a header nor cpp file` );
-        }
+        let cppFilePath = FileUtils.uriToRelativeCppWorkspacePath( cppClass.files[0] );
 
         templateInput.CppClassName = cppClassName,
         templateInput.CppFilePath = cppFilePath;
@@ -445,14 +438,11 @@ export class LuaClassCreation implements Module {
             throw new Error( `Unable to find C++ class '${cppClassName}'`  );
         }
 
-        let file = cppClass.headerFile;
-        if( file === undefined ){
-            file = cppClass.cppFile;
-
-            if( file === undefined ){
-                throw new Error( `Class '${cppClassName}' has cache entry but neither a header nor cpp file` );
-            }
+        if( cppClass.files.length === 0 ){
+            throw new Error( `Class '${cppClassName}' has cache entry but no files listed` );
         }
+
+        let file = cppClass.files[0];
 
         const relativePath = vscode.workspace.asRelativePath( file );
 
