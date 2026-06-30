@@ -141,10 +141,10 @@ export class LanguageSwitcher extends Module {
         this.setButtonVisibility( FileType.Lua, true );
     }
 
-    static switchToFile( file: vscode.Uri ){
+    static switchToFile( file: vscode.Uri, column: vscode.ViewColumn ){
         vscode.workspace.openTextDocument( file ).then(
             ( document ) => {
-                vscode.window.showTextDocument( document );
+                vscode.window.showTextDocument( document, column );
             },
             () => {}
         );
@@ -156,7 +156,7 @@ export class LanguageSwitcher extends Module {
             return;
         }
 
-        LanguageSwitcher.switchToFile( LanguageSwitcher.cppFileToOpen );
+        LanguageSwitcher.switchToFile( LanguageSwitcher.cppFileToOpen, vscode.ViewColumn.Two );
     }
 
     static switchToHeader(){
@@ -165,7 +165,7 @@ export class LanguageSwitcher extends Module {
             return;
         }
 
-        LanguageSwitcher.switchToFile( LanguageSwitcher.headerFileToOpen );
+        LanguageSwitcher.switchToFile( LanguageSwitcher.headerFileToOpen, vscode.ViewColumn.Two );
     }
 
     static switchToLua(){
@@ -175,6 +175,6 @@ export class LanguageSwitcher extends Module {
             return;
         }
 
-        LanguageSwitcher.switchToFile( LanguageSwitcher.luaFileToOpen );
+        LanguageSwitcher.switchToFile( LanguageSwitcher.luaFileToOpen, vscode.ViewColumn.One );
     }    
 }

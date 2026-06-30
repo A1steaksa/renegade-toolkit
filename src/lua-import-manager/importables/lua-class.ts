@@ -2,6 +2,7 @@ import { LuaImportable } from "./lua-importable";
 import { TextUtils } from "../../utils/text-utils";
 import * as vscode from 'vscode';
 import { config } from '../../extension';
+import { ConfigUtils } from "../../utils/config-utils";
 
 export class LuaClass extends LuaImportable {
     
@@ -15,7 +16,7 @@ export class LuaClass extends LuaImportable {
     
     private static getLuaAddonPath(): string {
         if( this.luaAddonPath === undefined ){
-            this.luaAddonPath = config.get<string>( "LuaAddonPath" )!.trim();
+            this.luaAddonPath = ConfigUtils.GetLuaCodeRoot();
         }
 
         return this.luaAddonPath;
@@ -29,8 +30,16 @@ export class LuaClass extends LuaImportable {
             ["Class", "Instance"]
         );
 
-        this.staticName = this.baseName + "Class";
-        this.instanceName = this.baseName + "Instance";
+        // Some files contain static-only data and don't follow normal class naming
+        if(
+            staticName.endsWith( "Ids" ) || staticName.endsWith( "Utils" ) || staticName.endsWith( "Types" ) || staticName.endsWith( "Lib" )
+        ){
+            this.staticName = this.baseName;
+            this.instanceName = this.baseName;
+        }else{
+            this.staticName = this.baseName + "Class";
+            this.instanceName = this.baseName + "Instance";
+        }
 
         this.containingFile = containingFile;
     }

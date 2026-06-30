@@ -1,17 +1,23 @@
 import * as vscode from 'vscode';
 
 export class TextUtils {
-
-    private static camelCaseWordPattern = /~|[0-9]+(?:[a-z]|[A-Z])*|[A-Z][a-z]+|[A-Z]+(?![a-z])/g;
-
     private static cppShorthandExpander: Record<string, string> = {
-        "Obj"  : "Object",
-        "Def"  : "Definition",
-        "Anim" : "Animation",
-        "Mgr"  : "Manager",
-        "Phys" : "Physics",
-        "Sys"  : "System",
+        "Obj"   : "Object",
+        "Objs"  : "Objects",
+        "Def"   : "Definition",
+        "Anim"  : "Animation",
+        "Mgr"   : "Manager",
+        "Phys"  : "Physics",
+        "Sys"   : "System",
+        "Proto" : "Prototype",
+        "Alloc" : "Allocate",
+        "Prev"  : "Previous",
+        "Ptr"   : "Pointer"
     };
+
+    private static customWords: string[] = [
+        "WW3D"
+    ];
 
     /**
      * Replaces any shorthand words with their full and expanded counterparts
@@ -26,15 +32,23 @@ export class TextUtils {
         return expandedWords;
     }
 
+    /**
+     * Replaces a shorthand word with its full and expanded counterpart
+     */
+    public static expandWord( word: string ) : string {
+        const expandedWord = this.cppShorthandExpander[word];
+        return ( expandedWord !== undefined ? expandedWord : word );
+    }
+
     /** Converts a C++ identifier (class, function, field) to the format expected by Lua */
     public static cppNameToLua( cppName: string ): string{
         const expandedWords: string[] = [];
 
         // C++ names are a weird mix of underscore delimited and CamelCase
         // so they must be split multiple times in different ways
-        const underscoreSplit = cppName.split( "_" );
-        for (let underscoreIndex = 0; underscoreIndex < underscoreSplit.length; underscoreIndex++) {
-            const underscoreWord = underscoreSplit[underscoreIndex];
+        const nameSegments = cppName.split( "_" );
+        for (let underscoreIndex = 0; underscoreIndex < nameSegments.length; underscoreIndex++) {
+            const nameSegment = nameSegments[underscoreIndex];
             
             // Underscore-separated words can be:
             // * One ALLCAPS acronym
@@ -42,18 +56,24 @@ export class TextUtils {
             // * Several CamelCase words
 
             // Also catches if it's all numbers, probably
-            const isAllCaps = underscoreWord === underscoreWord.toUpperCase();
+            const isAllCaps = nameSegment === nameSegment.toUpperCase();
 
             if( isAllCaps ){
-                expandedWords.push( underscoreWord );
+                expandedWords.push( nameSegment );
             }else{
-                const camelCaseSplit = TextUtils.splitCamelCase( underscoreWord );
+                const camelCaseSplit = TextUtils.splitCamelCase( nameSegment );
 
-                const expandedCamelCaseWords = this.expandWords( camelCaseSplit );
-
-                for( let camelCaseIndex = 0; camelCaseIndex < expandedCamelCaseWords.length; camelCaseIndex++ ){
-                    const expandedWord = expandedCamelCaseWords[camelCaseIndex];
-                    expandedWords.push( expandedWord );
+                if( camelCaseSplit.length !== 0 ){
+                    const expandedCamelCaseWords = this.expandWords( camelCaseSplit );
+    
+                    for( let camelCaseIndex = 0; camelCaseIndex < expandedCamelCaseWords.length; camelCaseIndex++ ){
+                        const expandedWord = expandedCamelCaseWords[camelCaseIndex];
+                        expandedWords.push( expandedWord );
+                    }
+                }else{
+                    // Some name segments might not be CamelCase
+                    const expandedSegment = this.expandWord( nameSegment );
+                    expandedWords.push( expandedSegment );
                 }
             }
         }
@@ -76,14 +96,8 @@ export class TextUtils {
             .find(([key, val]) => val === value)?.[0];
     }
 
-    public static getIndent( indentCount: number ) : string {
-        const editor = vscode.window.activeTextEditor;
-        if( editor === undefined ){
-            throw new Error( "No active text editor could be found during indent string creation" );
-        }
-
-        const indentSize = editor.options.indentSize;
-        return " ".repeat( indentSize as number );
+    public static getIndent( indentCount: number = 1 ) : string {
+        return "\t".repeat( indentCount );
     }
 
     /**
@@ -134,11 +148,11 @@ export class TextUtils {
      * Converts CamelCase into an array of each word.  E.g. ["Camel","Case"]
      */
     public static splitCamelCase( camelCaseText: string ) : string[] {
-        const words = [];
-        let matches = this.camelCaseWordPattern.exec( camelCaseText );
-        while( matches !== null ){
-            words.push( matches[0] );
-            matches = this.camelCaseWordPattern.exec( camelCaseText );
+        const pattern = /~|W+3[Dd]|[0-9]+[A-Z]*|[A-Z]+(?=[A-Z][a-z]|\d)|[A-Z][a-z]*|[a-z]+/g;
+        const words: string[] = [];
+        let match: RegExpExecArray | null;
+        while ((match = pattern.exec(camelCaseText)) !== null) {
+            words.push(match[0]);
         }
         return words;
     }

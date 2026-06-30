@@ -1,10 +1,5 @@
 {
 	"folders": [
-		{
-			"path": "."
-		},
-		{
-			"path": "../../test folder"
-		}
+		{ "path": "." },
 	]
 }

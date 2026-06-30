@@ -5,7 +5,7 @@ import { LuaEnum } from "./importables/lua-enum";
 export class LuaImportableCache {
 
     /** The cache of Lua classes and their import paths */
-    private static importableClasses: LuaClass[] = [];
+    public static importableClasses: LuaClass[] = [];
 
     /** The cache of Lua class and the enums they contain */
     private static importableEnums: LuaEnum[] = [];
@@ -22,12 +22,7 @@ export class LuaImportableCache {
     public static getLuaClassByName( className: string ): LuaClass | undefined {
         className = className.toLowerCase();
 
-        for( let index = 0; index < this.importableClasses.length; index++ ){
-            const luaClass = this.importableClasses[index];
-            if( luaClass.getStaticName().toLowerCase() === className ){
-                return luaClass;
-            }
-        }
+        return this.importableClasses.find( value => ( value.getStaticName().toLowerCase() === className ) );
     }
     
     public static getLuaClassesByNames( classNames: string[] ): LuaClass[] {

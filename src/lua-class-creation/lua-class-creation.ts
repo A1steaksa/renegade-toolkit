@@ -15,9 +15,6 @@ import { CppClassTranslator } from './cpp-class-translator';
 
 export class LuaClassCreation implements Module {
 
-    /** The filename of the Handlebars template file */
-    protected templateFileName = "class-template.handlebars";
-
     /** The postfix ending for Lua class names when referring to the class's static components */
     private static staticClassPostfix = "Class";
 
@@ -29,9 +26,6 @@ export class LuaClassCreation implements Module {
 
     /** The directory where template files should be, relative to the project's root */
     private static templateBasePath = "./templates";
-
-    /** The filename of the Handlebars template file */
-    private static templateFileName = "class-template.handlebars";
 
     private static template: HandlebarsTemplateDelegate;
     private static cppWorkspaceFolderName: string | undefined;
@@ -64,8 +58,7 @@ export class LuaClassCreation implements Module {
             async () => {
                 const editor = vscode.window.activeTextEditor;
                 if( editor === undefined ) { return; }
-                if( editor.document.languageId !== "cpp" ) { return; }                
-                if( !editor.document.fileName.endsWith( ".h" ) ){ return; }
+                if( editor.document.languageId !== "cpp" ) { return; }
 
                 // Get a list of the classes the file contains
                 const classesInFile = CppClassCache.getClassesByUri( editor.document.uri );
@@ -106,7 +99,7 @@ export class LuaClassCreation implements Module {
                 const luaClassDefinition = LuaClassDefinition.fromCppClassDefinition( cppClassDefinition );
 
                 // Create the file path where the class definition file should be saved
-                const rootSavePath = FileUtils.relativeLuaWorkspacePathToUri( ConfigUtils.getString( "LuaClassDefinitionRootPath" ) );
+                const rootSavePath = FileUtils.relativeLuaWorkspacePathToUri( ConfigUtils.GetLuaClassDefinitionRootPath() );
 
                 const relativeCppClassFilePath = FileUtils.uriToRelativeCppWorkspacePath( editor.document.uri );
                 const cppClassPath = this.createCppClassPath( luaClassDefinition.CppName, relativeCppClassFilePath );
@@ -128,8 +121,7 @@ export class LuaClassCreation implements Module {
     private static async loadTemplate(){
         const classTemplatePath = vscode.Uri.joinPath(
             FileUtils.getLuaWorkspaceFolder().uri,
-            this.templateBasePath,
-            this.templateFileName
+            ConfigUtils.GetLuaClassTemplateFilePath()
         );
 
         const classTemplateContents = await FileUtils.read( classTemplatePath );
@@ -158,11 +150,6 @@ export class LuaClassCreation implements Module {
 
     // #region "Based On" header comment
         const cppClassName = classDefinition.CppName;
-        const cppClass = CppClassCache.getClassByName( cppClassName );
-        if( cppClass === undefined ){
-            throw new Error( `CPP Class Cache does not contain class '${cppClassName}'` );
-        }
-        
         templateInput.CppClassName = cppClassName,
         templateInput.CppFilePath = classDefinition.CppPath;
     // #endregion
@@ -254,7 +241,7 @@ export class LuaClassCreation implements Module {
         let staticFieldsString = LuaGenerationUtils.createFields( staticFields );
         if( staticFields.length !== 0 ){
             if( indentStatics ){
-                staticFieldsString = TextUtils.indentAll( staticFieldsString );
+                staticFieldsString = TextUtils.indentAll( staticFieldsString, 2 );
             }
             staticFieldsString += "\n";
         }
@@ -351,26 +338,6 @@ export class LuaClassCreation implements Module {
 // #endregion
 
 
-// #region Accessors
-
-    private static getCppWorkspaceFolderName(): string {
-        if( this.cppWorkspaceFolderName === undefined ){
-            this.cppWorkspaceFolderName = ConfigUtils.getString( "CppWorkspaceFolderName" );
-        }
-
-        return this.cppWorkspaceFolderName;
-    }
-
-    private static getLuaWorkspaceFolderName(): string {
-        if( this.luaWorkspaceFolderName === undefined ){
-            this.luaWorkspaceFolderName = ConfigUtils.getString( "LuaWorkspaceFolderName" );
-        }
-
-        return this.luaWorkspaceFolderName;
-    }
-// #endregion
-
-
 // #region Names
 
     /**
@@ -438,15 +405,6 @@ export class LuaClassCreation implements Module {
      * @param cppClassFile The file that contains the class
      */
     public static createCppClassPath( cppClassName: string, relativeCppClassFilePath: string ) : string {
-        const cppClass = CppClassCache.getClassByName( cppClassName );
-        if( cppClass === undefined ){
-            throw new Error( `Unable to find C++ class '${cppClassName}'`  );
-        }
-
-        if( cppClass.files.length === 0 ){
-            throw new Error( `Class '${cppClassName}' has cache entry but no files listed` );
-        }
-
         const relativePath = vscode.workspace.asRelativePath( relativeCppClassFilePath );
 
         // Remove any workspace folder names from the start of the path
@@ -454,8 +412,8 @@ export class LuaClassCreation implements Module {
             relativePath,
             [
                 "/",
-                this.getCppWorkspaceFolderName(),
-                this.getLuaWorkspaceFolderName()
+                ConfigUtils.GetCppWorkspaceFolderName(),
+                ConfigUtils.GetLuaWorkspaceFolderName()
             ]
         );
 

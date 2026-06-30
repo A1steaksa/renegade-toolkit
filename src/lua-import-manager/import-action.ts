@@ -8,8 +8,8 @@ export class LuaImportAction implements vscode.CodeActionProvider {
 
     private static luaGlobalVariableNamePattern = /\`\w+\`/gm;
 
-    public static createClassImportCommand( document: vscode.TextDocument, importable: LuaClass ): vscode.Command {
-        return {
+    public static createClassImportAction( document: vscode.TextDocument, importable: LuaClass ): vscode.CodeAction {
+        const importCommand = {
             title: "Import " + importable.getStaticName() + " from " + importable.getImportPath() + "?" ,
             command: "renegade-toolkit.addClassImport",
             arguments: [
@@ -17,10 +17,27 @@ export class LuaImportAction implements vscode.CodeActionProvider {
                 importable
             ]
         };
+
+        // Apparently VSCode has a soft requirement that each CodeAction has a diagnostic
+        const diagnostic = new vscode.Diagnostic(
+            new vscode.Range(
+                new vscode.Position( 0, 0 ),
+                new vscode.Position( 0, 0 )
+            ),
+            importCommand.title,
+            vscode.DiagnosticSeverity.Hint
+        );
+
+        const importAction = new vscode.CodeAction( importCommand.title, vscode.CodeActionKind.QuickFix );
+        importAction.isPreferred = true;
+        importAction.diagnostics = [diagnostic];
+        importAction.command = importCommand;
+
+        return importAction;
     }
 
-    public static createEnumImportCommand( document: vscode.TextDocument, importable: LuaEnum ): vscode.Command {
-        return {
+    public static createEnumImportAction( document: vscode.TextDocument, importable: LuaEnum ): vscode.CodeAction {
+        const importCommand = {
             title: "Import " + importable.getStaticName() + " from " + importable.getContainingClass().getStaticName() + "?" ,
             command: "renegade-toolkit.addEnumImport",
             arguments: [
@@ -28,6 +45,23 @@ export class LuaImportAction implements vscode.CodeActionProvider {
                 importable
             ]
         };
+
+        // Apparently VSCode has a soft requirement that each CodeAction has a diagnostic
+        const diagnostic = new vscode.Diagnostic(
+            new vscode.Range(
+                new vscode.Position( 0, 0 ),
+                new vscode.Position( 0, 0 )
+            ),
+            importCommand.title,
+            vscode.DiagnosticSeverity.Hint
+        );
+
+        const importAction = new vscode.CodeAction( importCommand.title, vscode.CodeActionKind.QuickFix );
+        importAction.isPreferred = true;
+        importAction.diagnostics = [diagnostic];
+        importAction.command = importCommand;
+
+        return importAction;
     }
 
     provideCodeActions( document: vscode.TextDocument, range: vscode.Range | vscode.Selection, context: vscode.CodeActionContext, token: vscode.CancellationToken ): vscode.ProviderResult<( vscode.CodeAction | vscode.Command )[]> {
@@ -36,16 +70,15 @@ export class LuaImportAction implements vscode.CodeActionProvider {
             return;
         }
 
-        const actions: vscode.Command[] = [];
+        const actions: vscode.CodeAction[] = [];
 
         // Class imports
         const luaClasses = LuaImportableCache.findLuaClassesByName( missingVariableName );
-        for (let classIndex = 0; classIndex < luaClasses.length; classIndex++) {
+
+        for( let classIndex = 0; classIndex < luaClasses.length; classIndex++ ){
             const luaClass = luaClasses[classIndex];
-            
-            actions.push(
-                LuaImportAction.createClassImportCommand( document, luaClass )
-            );
+
+            actions.push( LuaImportAction.createClassImportAction( document, luaClass ) );
         }
 
         // Enum imports
@@ -53,14 +86,12 @@ export class LuaImportAction implements vscode.CodeActionProvider {
         for (let enumIndex = 0; enumIndex < luaEnums.length; enumIndex++) {
             const luaEnum = luaEnums[enumIndex];
 
-            actions.push(
-                LuaImportAction.createEnumImportCommand( document, luaEnum )
-            );
+            actions.push( LuaImportAction.createEnumImportAction( document, luaEnum ) );
         }
 
-        if( actions.length !== 0 ){
-            return actions;
-        }
+        console.log( "Actions: ", actions );
+
+        return actions;
     }
 
     private getMissingVariableName( context: vscode.CodeActionContext ): string | undefined {

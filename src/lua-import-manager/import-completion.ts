@@ -16,6 +16,7 @@ export class LuaImportCompletion implements vscode.CompletionItemProvider {
 
         const importCommands: vscode.CompletionItem[] = [];
 
+        
         // Class imports
         const luaClasses = LuaImportableCache.findLuaClassesByName( triggerWord );
         for (let classIndex = 0; classIndex < luaClasses.length; classIndex++) {
@@ -23,6 +24,7 @@ export class LuaImportCompletion implements vscode.CompletionItemProvider {
 
             // Don't try to import twice
             if( LuaImportManager.doesDocumentImportClass( document, luaClass ) ){
+                console.log( "We already import ", luaClass.getStaticName() );
                 return;
             }
 
@@ -31,10 +33,12 @@ export class LuaImportCompletion implements vscode.CompletionItemProvider {
                 vscode.CompletionItemKind.Class
             );
 
+            const classImportAction = LuaImportAction.createClassImportAction( document, luaClass );
+
             classImportCompletionItem.filterText = triggerWord;
-            classImportCompletionItem.command = LuaImportAction.createClassImportCommand( document, luaClass );
+            classImportCompletionItem.command = classImportAction.command;
             classImportCompletionItem.insertText = luaClass.getVariableName();
-            classImportCompletionItem.detail = `Import ${luaClass.getStaticName()} from ${luaClass.getImportPath()}`;
+            classImportCompletionItem.detail = classImportAction.title;
 
             importCommands.push( classImportCompletionItem );
         }
@@ -56,10 +60,12 @@ export class LuaImportCompletion implements vscode.CompletionItemProvider {
                 vscode.CompletionItemKind.Enum
             );
 
+            const enumImportAction = LuaImportAction.createEnumImportAction( document, luaEnum );
+
             enumImportCompletionItem.filterText = triggerWord;
-            enumImportCompletionItem.command = LuaImportAction.createEnumImportCommand( document, luaEnum );
+            enumImportCompletionItem.command = enumImportAction.command;
             enumImportCompletionItem.insertText = luaEnum.getVariableName();
-            enumImportCompletionItem.detail = `Import ${luaEnum.getStaticName()} from ${luaEnum.getContainingClass().getStaticName()}`;
+            enumImportCompletionItem.detail = enumImportAction.title;
 
             importCommands.push( enumImportCompletionItem );
         }

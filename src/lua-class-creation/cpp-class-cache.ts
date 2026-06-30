@@ -1,83 +1,14 @@
 import * as vscode from 'vscode';
 import { Module } from '../module';
-import { CppScanner } from '../file-scanner/cpp-scanner';
-import { CppCachedClass } from './cpp-cached-class';
-import { HeaderScanner } from '../file-scanner/header-scanner';
-import { config } from '../extension';
+import { CompressedCppClassFiles, CppClassFiles } from './cpp-class-files';
 import { ConfigUtils } from '../utils/config-utils';
 import { FileUtils } from '../utils/file-utils';
-import { FileScanner } from '../file-scanner/file-scanner';
-import { TextUtils } from '../utils/text-utils';
 
-/**
- * The classes that are saved and loaded from the CPP Class Cache file.  
- * These must be convertable to and from `CppCachedClass` but with a
- * hopefully smaller footprint on disk.
- */
-class CppClassFileCacheEntry{
-
-    private static cppWorkspaceFolder: vscode.WorkspaceFolder;
-    private static cppWorkspaceName: string;
-
-    public static fromCppCachedClass( cachedclass: CppCachedClass ) : CppClassFileCacheEntry {
-        const paths: string[] = [];
-        for (let fileIndex = 0; fileIndex < cachedclass.files.length; fileIndex++) {
-            const file = cachedclass.files[fileIndex];
-            paths.push( vscode.workspace.asRelativePath( file ) );
-        }
-
-        return new CppClassFileCacheEntry(
-            cachedclass.name,
-            paths
-        );
-    }
-
-    public toCppCachedClass() : CppCachedClass {
-        const paths: vscode.Uri[] = [];
-        for (let pathIndex = 0; pathIndex < this.filePaths.length; pathIndex++) {
-            const path = this.filePaths[pathIndex];
-            paths.push( CppClassFileCacheEntry.relativePathToUri( path ) );
-        }
-
-        return new CppCachedClass( this.name, paths );
-    }
-
-    public static relativePathToUri( relativePath: string ): vscode.Uri {
-        if( this.cppWorkspaceFolder === undefined || this.cppWorkspaceName === undefined ){
-            const cppWorkspaceName = config.get<string>( "CppWorkspaceFolderName" );
-            if( cppWorkspaceName === undefined ){
-                throw new Error( "Unable to retrieve CPP Workspace Name from config" );
-            }
-            this.cppWorkspaceName = cppWorkspaceName;
-    
-            for (let workspaceFolderIndex = 0; workspaceFolderIndex < vscode.workspace.workspaceFolders!.length; workspaceFolderIndex++) {
-                const workspaceFolder = vscode.workspace.workspaceFolders![workspaceFolderIndex];
-                if( workspaceFolder.name === cppWorkspaceName ){
-                    this.cppWorkspaceFolder = workspaceFolder;
-                    break;
-                }
-            }
-    
-            if( this.cppWorkspaceFolder === undefined ){
-                throw new Error( `No workspace folder matches expected CPP Workspace Name from config: '${cppWorkspaceName}'` );
-            }
-        }
-
-        relativePath = TextUtils.removeBeginnings( relativePath, [this.cppWorkspaceName] );
-
-        return vscode.Uri.joinPath( this.cppWorkspaceFolder.uri, relativePath );
-    }
-    
-    private constructor(
-        public name: string,
-        public filePaths: string[]
-    ){}
-}
 
 export class CppClassCache extends Module {
 
     /** The cache of C++ classes */
-    private static cppClassCache: CppCachedClass[];
+    private static cppClassCache: CppClassFiles[];
 
     private static cppClassCacheFile: vscode.Uri;
 
@@ -93,7 +24,7 @@ export class CppClassCache extends Module {
 
         // Create the cache file's full URI
         // The cache is stored in the Lua project files so the Lua Workspace path is used
-        this.cppClassCacheFile = FileUtils.relativeLuaWorkspacePathToUri( ConfigUtils.getString( "CppClassCacheFile" ) );
+        this.cppClassCacheFile = FileUtils.relativeLuaWorkspacePathToUri( ConfigUtils.GetCppClassCacheFilePath() );
         
         let cacheFileExists = await FileUtils.exists( this.cppClassCacheFile );
         
@@ -189,14 +120,14 @@ export class CppClassCache extends Module {
             return false;
         }
 
-        const fileCacheEntries = JSON.parse( cacheString ) as CppClassFileCacheEntry[];
+        const fileCacheEntries = JSON.parse( cacheString ) as CompressedCppClassFiles[];
 
         // Convert the cache file entries into in-memory cache entries
         this.cppClassCache = [];
         for (let cacheFileEntryIndex = 0; cacheFileEntryIndex < fileCacheEntries.length; cacheFileEntryIndex++) {
             const fileCacheEntry = Object.setPrototypeOf(
                 fileCacheEntries[cacheFileEntryIndex],
-                CppClassFileCacheEntry.prototype
+                CompressedCppClassFiles.prototype
             );
 
             const memoryCacheEntry = fileCacheEntry.toCppCachedClass();
@@ -208,11 +139,11 @@ export class CppClassCache extends Module {
     }
 
     private static saveCache(){
-        // Cache files need to be converted to their savable counterparts
+        // Class files need to be converted to their compressed counterparts
         const convertedCache = [];
         for (let cachedClassIndex = 0; cachedClassIndex < this.cppClassCache.length; cachedClassIndex++) {
             const cachedClass = this.cppClassCache[cachedClassIndex];
-            convertedCache.push( CppClassFileCacheEntry.fromCppCachedClass( cachedClass ) );
+            convertedCache.push( CompressedCppClassFiles.fromCppCachedClass( cachedClass ) );
         }
 
         const cacheString = JSON.stringify( convertedCache );
@@ -243,7 +174,7 @@ export class CppClassCache extends Module {
         }
 
         // Create a new entry if none exists already
-        this.cppClassCache.push( new CppCachedClass( className, [file] ) );
+        this.cppClassCache.push( new CppClassFiles( className, [file] ) );
     }
 
     public static cacheContainsFile( file: vscode.Uri ) : boolean {
@@ -260,7 +191,7 @@ export class CppClassCache extends Module {
         return false;
     }
 
-    public static getClassByName( className: string ): CppCachedClass | undefined {
+    public static getClassByName( className: string ): CppClassFiles | undefined {
         for (let classIndex = 0; classIndex < this.cppClassCache.length; classIndex++) {
             const cppClass = this.cppClassCache[classIndex];
             if( cppClass.name === className ){
@@ -269,7 +200,7 @@ export class CppClassCache extends Module {
         }
     }
 
-    public static getClassesByUri( file: vscode.Uri ) : CppCachedClass[] {
+    public static getClassesByUri( file: vscode.Uri ) : CppClassFiles[] {
         // Make sure the file is scanned and cached
         if( !this.cacheContainsFile( file ) ){
             console.log( `Extending the cache to include ${file.path}` );
@@ -277,7 +208,7 @@ export class CppClassCache extends Module {
             this.saveCache();
         }
 
-        const classes: CppCachedClass[] = [];
+        const classes: CppClassFiles[] = [];
 
         // Find classes with this file in their file lists
         for( let classIndex = 0; classIndex < this.cppClassCache.length; classIndex++ ){

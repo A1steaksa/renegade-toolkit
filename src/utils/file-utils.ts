@@ -15,23 +15,9 @@ export class FileUtils {
 
 // #region Accessors
 
-    private static getLuaAddonPath(): string {
-        if( this.luaAddonPath === undefined ){
-            this.luaAddonPath = ConfigUtils.getString( "LuaAddonPath" );
-        }
-        return this.luaAddonPath;
-    }
-
-    private static getCppWorkspaceFolderName() : string {
-        if( this.cppWorkspaceFolderName === undefined ){
-            this.cppWorkspaceFolderName = ConfigUtils.getString( "CppWorkspaceFolderName" );
-        }
-        return this.cppWorkspaceFolderName;
-    }
-
     public static getCppWorkspaceFolder(): vscode.WorkspaceFolder {
         if( this.cppWorkspaceFolder === undefined ){
-            const cppWorkspaceFolderName = this.getCppWorkspaceFolderName();
+            const cppWorkspaceFolderName = ConfigUtils.GetCppWorkspaceFolderName();
             const cppWorkspaceFolder = this.getWorkspaceFolder( cppWorkspaceFolderName );
 
             if( cppWorkspaceFolder === undefined ){
@@ -43,16 +29,9 @@ export class FileUtils {
         return this.cppWorkspaceFolder;
     }
 
-    private static getLuaWorkspaceFolderName() : string {
-        if( this.luaWorkspaceFolderName === undefined ){
-            this.luaWorkspaceFolderName = ConfigUtils.getString( "LuaWorkspaceFolderName" );
-        }
-        return this.luaWorkspaceFolderName;
-    }
-
     public static getLuaWorkspaceFolder(): vscode.WorkspaceFolder {
         if( this.luaWorkspaceFolder === undefined ){
-            const luaWorkspaceFolderName = this.getLuaWorkspaceFolderName();
+            const luaWorkspaceFolderName = ConfigUtils.GetLuaWorkspaceFolderName();
             const luaWorkspaceFolder = this.getWorkspaceFolder( luaWorkspaceFolderName );
 
             if( luaWorkspaceFolder === undefined ){
@@ -89,8 +68,8 @@ export class FileUtils {
             relativePath,
             [
                 "/", 
-                this.getCppWorkspaceFolderName(),
-                this.getLuaWorkspaceFolderName()
+                ConfigUtils.GetCppWorkspaceFolderName(),
+                ConfigUtils.GetLuaWorkspaceFolderName()
             ]
          );
 

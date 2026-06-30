@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { Module } from '../module';
 import { LuaScanner } from '../file-scanner/lua-scanner';
 import { config } from '../extension';
+import { ConfigUtils } from '../utils/config-utils';
 
 export class LuaBasedOn {
     constructor( public className: string, public filePath: string ) { }
@@ -22,14 +23,8 @@ export class ClassFileCache extends Module {
     public static override initialize( context: vscode.ExtensionContext ): void {
         this.fileConnectionCache = [];
 
-        const workspaceFolderName = config.get<string>( "CppWorkspaceFolderName" );
+        const workspaceFolderName = config.get<string>( "cpp.workspaceFolderName" );
         if( workspaceFolderName === undefined ) {
-            vscode.window.showErrorMessage( "The extension config appears to be malformed" );
-            return;
-        }
-
-        const relativeRoot = config.get<string>( "CppCodeRoot" );
-        if( relativeRoot === undefined ) {
             vscode.window.showErrorMessage( "The extension config appears to be malformed" );
             return;
         }

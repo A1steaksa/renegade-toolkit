@@ -9,7 +9,7 @@ import { LuaClass } from './importables/lua-class';
 
 export class LuaImportableClassScanner extends Module {
 
-    private static luaClassNamePattern = /--- @class\s+(\w+(?:Class|Lib|Ids?))/m;
+    private static luaClassNamePattern = /--- @class\s+(\w+(?:Class|Lib|Ids|Utils|Types))/m;
     private static luaEnumNamePattern = /--+\s*@enum\s+(\w+)/gm;
 
     public static initialize( context: vscode.ExtensionContext ){
@@ -24,11 +24,14 @@ export class LuaImportableClassScanner extends Module {
         if( importableClass === undefined ){
             return;
         }
+        LuaImportableCache.storeImportableClass( importableClass );
 
         // Find any importable Lua enums defined within this importable Lua class
         const importableEnums = this.scanLuaForImportableEnums( importableClass, fileContent );
+        if( importableEnums === undefined ){
+            return;
+        }
 
-        LuaImportableCache.storeImportableClass( importableClass );
         LuaImportableCache.storeImportableEnums( importableEnums );
     }
 
@@ -36,7 +39,6 @@ export class LuaImportableClassScanner extends Module {
      * Finds the Lua class or library (if any) in a given Lua file's contents and caches it as an importable
      */
     public static scanLuaForImportableClass( file: vscode.Uri, fileContent: string ) : LuaClass | undefined {
-        
         // Find the first class defined in the file (not counting the Renegade class)
         const luaClassMatches = this.luaClassNamePattern.exec( fileContent );
         if( luaClassMatches === null ){

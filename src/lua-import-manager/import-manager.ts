@@ -13,7 +13,7 @@ import { RegionUtils } from '../utils/region-utils';
 export class LuaImportManager extends Module {
 
     private static importedClassNamePattern = /---\s*@type\s*([A-z0-9]+)/gm;
-    private static importedEnumNamePattern = /=\s+[a-zA-Z0-9]+\.([A-Z_]+)/gm;
+    private static importedEnumNamePattern = /=\s+[a-zA-Z0-9]+\.([A-Z0-9_]+)/gm;
 
     private static classImportsRegionName = "Imports";
     private static enumImportsRegionName  = "Imported Enums";
@@ -21,11 +21,6 @@ export class LuaImportManager extends Module {
     public static override initialize( context: vscode.ExtensionContext ) {
 
         LuaImportableClassScanner.initialize( context );
-        
-        // Add our code action provider for adding a Lua import
-        vscode.languages.registerCodeActionsProvider( [ "lua" ], new LuaImportAction() );
-
-        vscode.languages.registerCompletionItemProvider( [ "lua" ], new LuaImportCompletion() );
 
         // Class import command
         const classImportDisposable = vscode.commands.registerCommand(
@@ -44,6 +39,15 @@ export class LuaImportManager extends Module {
         );
 
         context.subscriptions.push( classImportDisposable, enumImportDisposable );
+
+        const selector = [
+            { pattern: "**/*.lua", scheme: "*" },
+            { language: "lua" }
+        ];
+
+        // Add our code action provider for adding a Lua import
+        vscode.languages.registerCodeActionsProvider( selector, new LuaImportAction() );
+        vscode.languages.registerCompletionItemProvider( selector, new LuaImportCompletion() );
     }
 
     /**
@@ -190,7 +194,7 @@ export class LuaImportManager extends Module {
             const enumName = enumNames[enumNameIndex];
             const luaEnum = LuaImportableCache.getLuaEnumByName( enumName );
             if( luaEnum === undefined ){
-                throw new Error( "The enum '" + enumName + "' does not exist in the import cache.  Is the enum name correct?" );
+                throw new Error( `The enum '${enumName}' does not exist in the import cache.\nIs the enum name correct?` );
             }
 
             // Check for duplicates
@@ -217,19 +221,20 @@ export class LuaImportManager extends Module {
     public static getImportedClasses( document: vscode.TextDocument ) : LuaClass[] {
         const classNames = this.getImportedClassNames( document );
 
-        let importableClasses: LuaClass[] = [];
+        let importedClasses: LuaClass[] = [];
 
         for( let classNameIndex = 0; classNameIndex < classNames.length; classNameIndex++ ){
             const className = classNames[classNameIndex];
             const luaClass = LuaImportableCache.getLuaClassByName( className );
+
             if( luaClass === undefined ){
-                throw new Error( "The class '" + className + "' does not exist in the import cache.  Is the enum name correct?" );
+                throw new Error( "The class '" + className + "' does not exist in the import cache.  Is the class name correct?" );
             }
 
             // Check for duplicates
             let isDuplicateClass = false;
             for( let dupeCheckIndex = classNameIndex - 1; dupeCheckIndex > 0; dupeCheckIndex-- ){
-                const alreadyImportedClass = importableClasses[dupeCheckIndex];
+                const alreadyImportedClass = importedClasses[dupeCheckIndex];
                 if( alreadyImportedClass.equals( luaClass ) ){
                     isDuplicateClass = true;
                     break;
@@ -240,10 +245,10 @@ export class LuaImportManager extends Module {
                 continue;
             }
 
-            importableClasses.push( luaClass );
+            importedClasses.push( luaClass );
         }
 
-        return importableClasses;
+        return importedClasses;
     }
 
     public static getImportedEnumNames( document: vscode.TextDocument ) : string[] {
@@ -271,7 +276,6 @@ export class LuaImportManager extends Module {
         let match: RegExpExecArray | null = this.importedClassNamePattern.exec( importsString );
         while( match !== null ){ 
             classNames.push( match[1] );
-
             match = this.importedClassNamePattern.exec( importsString );
         }
 

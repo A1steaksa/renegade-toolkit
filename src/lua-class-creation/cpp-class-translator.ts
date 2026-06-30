@@ -20,7 +20,7 @@ export class CppClassDefinition {
 }
 
 export class CppClassParentDefinition {
-    constructor( public accessType: CppAccessType, public name: string ){}
+    constructor( public accessType: CppAccessType, public name: string ) {}
 }
 
 export class CppFieldDefinition {
@@ -217,6 +217,12 @@ export class CppClassTranslator {
             }
 
             const parentName = parentText.substring( spaceIndex + 1 );
+
+            // Some parent classes aren't helpful in Lua and can be ignored
+            console.log( parentName );
+            if( parentName === "RefCountClass" ){
+                continue;
+            }
             
             parents.push( new CppClassParentDefinition( accessType, parentName ) );
         }
@@ -276,6 +282,9 @@ export class CppClassTranslator {
 
         // Convert "DynamicVectorClass" generic types into arrays
         argsText = argsText.replaceAll( /DynamicVectorClass<(\w+)>/g, "$1[]" );
+
+        // Convert "SimpleDynVecClass" generic types into arrays
+        argsText = argsText.replaceAll( /SimpleDynVecClass<(\w+)>/g, "$1[]" );
 
         // Deal with other generic types
         let genericStartIndex = argsText.indexOf( "<" );

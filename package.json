@@ -21,7 +21,6 @@
                 "command": "renegade-toolkit.debug",
                 "title": "Run Renegade Debug"
             },
-
             {
                 "command": "renegade-toolkit.addClassImport",
                 "title": "Adds a class import to a Lua file"
@@ -30,7 +29,6 @@
                 "command": "renegade-toolkit.addEnumImport",
                 "title": "Adds an enum import to a Lua file"
             },
-
             {
                 "command": "renegade-toolkit.createClass",
                 "title": "Create New Class"
@@ -43,7 +41,6 @@
                 "command": "renegade-toolkit.createJsonFromHeader",
                 "title": "Create JSON Class Definition from C++ Header"
             },
-
             {
                 "command": "renegade-toolkit.switchToHeader",
                 "title": "Switch to Header",
@@ -71,7 +68,7 @@
                 },
                 {
                     "command": "renegade-toolkit.createJsonFromHeader",
-                    "when": "resourceFilename =~ /.+\\.h/"
+                    "when": "resourceFilename =~ /.+\\.(h|cpp)/"
                 }
             ],
             "editor/title": [
@@ -99,43 +96,42 @@
             }
         ],
         "configuration": {
-            "title": "Renegade Porting Toolkit Configuration",
+            "title": "Renegade Porting Toolkit",
             "properties": {
-                "renegade-toolkit.CppClassCacheFile": {
-                    "order": 0,
+                "renegade-toolkit.cpp.workspaceFolderName": {
                     "type": "string",
-                    "default": ".vscode/cpp-class-cache.json",
-                    "markdownDescription": "The file path where C++ class information should be cached within the Lua Workspace Folder"
-                },
-                "renegade-toolkit.CppWorkspaceFolderName": {
-                    "order": 1,
-                    "type": "string",
-                    "default": "CnC_Renegade",
+                    "default": "C&C Renegade",
                     "markdownDescription": "The name of the VSCode workspace folder that contains the project's C++ components"
                 },
-                "renegade-toolkit.CppCodeRoot": {
-                    "order": 2,
+                "renegade-toolkit.cpp.codeRoot": {
                     "type": "string",
                     "default": "",
                     "markdownDescription": "The path from the C++ Workspace directory to the directory containing the `Code/` directory"
                 },
-                "renegade-toolkit.LuaWorkspaceFolderName": {
-                    "order": 3,
+                "renegade-toolkit.cpp.classCacheFile": {
                     "type": "string",
-                    "default": "renegade",
+                    "default": ".vscode/cpp-class-cache.json",
+                    "markdownDescription": "The file path where C++ class information should be cached within the Lua Workspace Folder"
+                },
+                "renegade-toolkit.lua.workspaceFolderName": {
+                    "type": "string",
+                    "default": "Garry's Mod",
                     "markdownDescription": "The name of the VSCode workspace folder that contains the project's Lua components"
                 },
-                "renegade-toolkit.LuaAddonPath": {
-                    "order": 4,
+                "renegade-toolkit.lua.codeRoot": {
                     "type": "string",
                     "default": "renegade/lua/renegade",
-                    "markdownDescription": "The path from the `garrysmod/` directory to the lua directory containing the Renegade `code/` directory"
+                    "markdownDescription": "The path from the Lua Workspace directory to the lua directory containing the Renegade `code/` directory"
                 },
-                "renegade-toolkit.LuaClassDefinitionRootPath": {
-                    "order": 4,
+                "renegade-toolkit.lua.classDefinitionRootPath": {
                     "type": "string",
-                    "default": "class-definitions/",
+                    "default": ".vscode/class-definitions/",
                     "markdownDescription": "The path from the Lua Workspace Folder to the directory containing all Lua `*.class.json` definition files"
+                },
+                "renegade-toolkit.lua.templates.classTemplateFile": {
+                    "type": "string",
+                    "default": ".vscode/templates/class-template.handlebars",
+                    "markdownDescription": "The file path, relative to the Lua Workspace folder, of the `.handlebars` file that contains the class template"
                 }
             }
         }
@@ -150,7 +146,7 @@
     },
     "devDependencies": {
         "@types/mocha": "^10.0.10",
-        "@types/node": "22.x",
+        "@types/node": "^22.20.0",
         "@types/vscode": "^1.107.0",
         "@vscode/test-cli": "^0.0.11",
         "@vscode/test-electron": "^2.5.2",

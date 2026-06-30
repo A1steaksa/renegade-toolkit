@@ -3,6 +3,7 @@ import { LanguageSwitcher } from './language-switcher/language-switcher';
 import { LuaImportManager } from './lua-import-manager/import-manager';
 import { LuaScanner } from './file-scanner/lua-scanner';
 import { LuaClassCreation } from './lua-class-creation/lua-class-creation';
+import { TerminalLinks } from './terminal-links/terminal-error-links';
 
 export const config = vscode.workspace.getConfiguration( "renegade-toolkit" );
 
@@ -17,6 +18,8 @@ export function activate( context: vscode.ExtensionContext ) {
     LanguageSwitcher.initialize( context );
 
     LuaClassCreation.initialize( context );
+
+    TerminalLinks.initialize( context );
 
     const debugDisposable = vscode.commands.registerCommand( "renegade-toolkit.debug", async () => {
         
