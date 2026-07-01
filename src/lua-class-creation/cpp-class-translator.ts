@@ -4,6 +4,7 @@ import { LuaClassDefinition } from './lua-class-definition';
 import { LuaClass } from '../lua-import-manager/importables/lua-class';
 import { LuaClassCreation } from './lua-class-creation';
 import { WindowUtils } from '../utils/window-utils';
+import { log } from 'console';
 
 export enum CppAccessType { Public, Private, Protected }
 
@@ -375,19 +376,22 @@ export class CppClassTranslator {
             }
 
             const lastSpaceIndex = fieldText.lastIndexOf( " " );
-            fieldName = fieldText.substring( lastSpaceIndex );
+            fieldName = fieldText.substring( lastSpaceIndex ).trim();
         
             const arrayBracketIndex = fieldName.indexOf( "[" );
             const isArray = arrayBracketIndex !== -1;
             if( isArray ) {
                 // TODO: probaby some kind of array-specific handling here
-                fieldName = fieldName.substring( 0, arrayBracketIndex );
+                fieldName = fieldName.substring( 0, arrayBracketIndex ).trim();
             }
 
             fieldDataType = fieldText.substring( 0, lastSpaceIndex );
         }
 
         fieldName = fieldName.trim();
+        fieldDataType = fieldDataType.trim();
+
+        console.log( "Creating field for '" + fieldName + "': '" + fieldDataType + "'" );
 
         return new CppFieldDefinition( isStatic, fieldName, fieldDataType );
     }

@@ -19,7 +19,7 @@ export class LuaField {
     }
 
     public toJSON(): Object {
-        return this.name;
+        return { Name: this.name, DataType: this.dataType };
     }
 
     public getFieldString(): string {
@@ -149,8 +149,8 @@ export class LuaClassDefinition {
             const luaFields = [];
             if( jsonFields !== undefined ) {
                 for( let fieldIndex = 0; fieldIndex < jsonFields.length; fieldIndex++ ) {
-                    const fieldName = jsonFields[fieldIndex];
-                    const luaField = new LuaField( fieldName );
+                    const field = jsonFields[fieldIndex];
+                    const luaField = new LuaField( field.Name, field.DataType );
                     luaFields.push( luaField );
                 }
             }
@@ -175,8 +175,8 @@ export class LuaClassDefinition {
             const luaFields = [];
             if( jsonFields !== undefined ) {
                 for( let fieldIndex = 0; fieldIndex < jsonFields.length; fieldIndex++ ) {
-                    const fieldName = jsonFields[fieldIndex];
-                    const luaField = new LuaField( fieldName );
+                    const field = jsonFields[fieldIndex];
+                    const luaField = new LuaField( field.Name, field.DataType );
                     luaFields.push( luaField );
                 }
             }
@@ -243,8 +243,9 @@ export class LuaClassDefinition {
             // TODO: Convert C++ field types to Lua types
 
             const fieldName = this.cppFieldNameToLua( field.name );
+            const dataType = this.cppDataTypeToLua( field.dataType );
 
-            luaFields.push( new LuaField( fieldName ) );
+            luaFields.push( new LuaField( fieldName, dataType ) );
         }
 
         return luaFields;
@@ -322,6 +323,24 @@ export class LuaClassDefinition {
             luaClassName = expandedWords.join( "" );
 
             return luaClassName;
+        }
+
+        private static typeConversion: { [cppTypeName: string]: string } = {
+            // C++  : Lua
+            "bool"  : "boolean",
+            "int"   : "integer",
+            "float" : "number",
+        };
+
+        private static cppDataTypeToLua( cppTypeName: string ): string {
+            
+            let simpleConversion = this.typeConversion[cppTypeName];
+
+            if( simpleConversion !== null ){
+                return simpleConversion;
+            }
+
+            return cppTypeName;
         }
 
         private static cppFieldNameToLua( cppFieldName: string ): string {
