@@ -154,7 +154,6 @@ export class LuaClassCreation implements Module {
         templateInput.CppFilePath = classDefinition.CppPath;
     // #endregion
         
-
     // #region Parents
         // Multiline import statements for the parent(s) of the class (if any)
         let parentImportsString = LuaImportManager.createClassImportsString( parents );
@@ -204,8 +203,8 @@ export class LuaClassCreation implements Module {
         templateInput.RobustClassParents = robustClassParentsString;
     // #endregion
 
-
     // #region Imports
+
         // Multiline import statements for all imported classes
         // Currently a placeholder for later expansion
         let classImportsString = "";
@@ -216,6 +215,7 @@ export class LuaClassCreation implements Module {
     // #endregion
 
     // #region Instance
+
         if( classDefinition.Instance !== undefined ){
             // Fields
             let instanceFieldsString = LuaGenerationUtils.createFields( classDefinition.Instance.Fields );
@@ -241,7 +241,7 @@ export class LuaClassCreation implements Module {
         let staticFieldsString = LuaGenerationUtils.createFields( staticFields );
         if( staticFields.length !== 0 ){
             if( indentStatics ){
-                staticFieldsString = TextUtils.indentAll( staticFieldsString, 2 );
+                staticFieldsString = TextUtils.indentAll( staticFieldsString, 1 );
             }
             staticFieldsString += "\n";
         }
