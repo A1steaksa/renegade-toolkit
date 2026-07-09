@@ -2,8 +2,10 @@ import * as vscode from 'vscode';
 import { LanguageSwitcher } from './language-switcher/language-switcher';
 import { LuaImportManager } from './lua-import-manager/import-manager';
 import { LuaScanner } from './file-scanner/lua-scanner';
-import { LuaClassCreation } from './lua-class-creation/lua-class-creation';
+import { ClassTranslator } from './lua-class-creation/class-translator';
 import { TerminalLinks } from './terminal-links/terminal-error-links';
+import { CppClassDefinition, CppDataType, CppField } from './lua-class-creation/cpp-class-definition';
+import { CppFieldDefinition } from './lua-class-creation/old/old_cpp-class-translator';
 
 export const config = vscode.workspace.getConfiguration( "renegade-toolkit" );
 
@@ -17,7 +19,7 @@ export function activate( context: vscode.ExtensionContext ) {
     LuaImportManager.initialize( context );
     LanguageSwitcher.initialize( context );
 
-    LuaClassCreation.initialize( context );
+    ClassTranslator.initialize( context );
 
     TerminalLinks.initialize( context );
 
