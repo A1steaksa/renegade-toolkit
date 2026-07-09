@@ -113,6 +113,20 @@
                     "default": ".vscode/cpp-class-cache.json",
                     "markdownDescription": "The file path where C++ class information should be cached within the Lua Workspace Folder"
                 },
+
+
+                "renegade-toolkit.json.classDefinitionExtension": {
+                    "type": "string",
+                    "default": ".class.json",
+                    "markdownDescription": "The file extension that JSON Lua class definition files will use"
+                },
+                "renegade-toolkit.json.classDefinitionRootPath": {
+                    "type": "string",
+                    "default": ".vscode/class-definitions/",
+                    "markdownDescription": "The path from the Lua Workspace Folder to the directory containing all JSON Lua class definitions"
+                },
+
+
                 "renegade-toolkit.lua.workspaceFolderName": {
                     "type": "string",
                     "default": "Garry's Mod",
@@ -122,11 +136,6 @@
                     "type": "string",
                     "default": "renegade/lua/renegade",
                     "markdownDescription": "The path from the Lua Workspace directory to the lua directory containing the Renegade `code/` directory"
-                },
-                "renegade-toolkit.lua.classDefinitionRootPath": {
-                    "type": "string",
-                    "default": ".vscode/class-definitions/",
-                    "markdownDescription": "The path from the Lua Workspace Folder to the directory containing all Lua `*.class.json` definition files"
                 },
                 "renegade-toolkit.lua.templates.classTemplateFile": {
                     "type": "string",

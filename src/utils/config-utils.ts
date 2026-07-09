@@ -12,6 +12,18 @@ export class ConfigUtils {
     }
 
     /**
+     * JSON
+     */
+    
+    public static GetJsonClassDefinitionFileExtension(): string {
+        return ConfigUtils.getString( "json.classDefinitionExtension" );
+    }
+
+    public static GetJsonClassDefinitionRootPath(): string {
+        return ConfigUtils.getString( "json.classDefinitionRootPath" );
+    }
+
+    /**
      * CPP
      */
 
