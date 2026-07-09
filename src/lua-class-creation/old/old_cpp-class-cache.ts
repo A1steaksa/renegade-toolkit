@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
-import { Module } from '../module';
-import { CompressedCppClassFiles, CppClassFiles } from './cpp-class-files';
-import { ConfigUtils } from '../utils/config-utils';
-import { FileUtils } from '../utils/file-utils';
+import { Module } from '../../module';
+import { CompressedCppClassFiles, CppClassFiles } from './old_cpp-class-files';
+import { ConfigUtils } from '../../utils/config-utils';
+import { FileUtils } from '../../utils/file-utils';
 
 
 export class CppClassCache extends Module {

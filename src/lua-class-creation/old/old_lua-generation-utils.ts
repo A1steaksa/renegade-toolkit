@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { TextUtils } from '../utils/text-utils';
-import { LuaFunctionSection, LuaField, LuaFunction } from './lua-class-definition';
+import { TextUtils } from '../../utils/text-utils';
+import { LuaFunctionSection, LuaField, LuaFunction } from './old_lua-class-definition';
 
 export class LuaGenerationUtils {
 

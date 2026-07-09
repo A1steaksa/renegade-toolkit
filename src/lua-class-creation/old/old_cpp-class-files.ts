@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { ConfigUtils } from '../utils/config-utils';
-import { TextUtils } from '../utils/text-utils';
+import { ConfigUtils } from '../../utils/config-utils';
+import { TextUtils } from '../../utils/text-utils';
 
 /// Represents all of the file paths that, together, comprise a C++ class's definition
 export class CppClassFiles {

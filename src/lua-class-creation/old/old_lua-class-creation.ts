@@ -1,19 +1,19 @@
 import * as vscode from 'vscode';
 import Handlebars from "handlebars";
-import { Module } from '../module';
-import { LuaFunctionSection, LuaClassDefinition, LuaFunction } from './lua-class-definition';
-import { TextUtils } from '../utils/text-utils';
-import { LuaClass } from '../lua-import-manager/importables/lua-class';
-import { LuaImportableCache } from '../lua-import-manager/importable-class-cache';
-import { CppClassCache } from './cpp-class-cache';
-import { ConfigUtils } from '../utils/config-utils';
-import { FileUtils } from '../utils/file-utils';
-import { LuaImportManager } from '../lua-import-manager/import-manager';
-import { LuaGenerationUtils } from './lua-generation-utils';
-import { WindowUtils } from '../utils/window-utils';
-import { CppClassTranslator } from './cpp-class-translator';
+import { Module } from '../../module';
+import { LuaFunctionSection, LuaClassDefinition, LuaFunction } from './old_lua-class-definition';
+import { TextUtils } from '../../utils/text-utils';
+import { LuaClass } from '../../lua-import-manager/importables/lua-class';
+import { LuaImportableCache } from '../../lua-import-manager/importable-class-cache';
+import { CppClassCache } from './old_cpp-class-cache';
+import { ConfigUtils } from '../../utils/config-utils';
+import { FileUtils } from '../../utils/file-utils';
+import { LuaImportManager } from '../../lua-import-manager/import-manager';
+import { LuaGenerationUtils } from './old_lua-generation-utils';
+import { WindowUtils } from '../../utils/window-utils';
+import { CppClassTranslator } from './old_cpp-class-translator';
 
-export class LuaClassCreation implements Module {
+export class OldLuaClassCreation implements Module {
 
     /** The postfix ending for Lua class names when referring to the class's static components */
     private static staticClassPostfix = "Class";
@@ -115,7 +115,7 @@ export class LuaClassCreation implements Module {
             }
         );
 
-        context.subscriptions.push( createClassFromHeaderDisposable, createClassFromJsonDisposable );    
+        context.subscriptions.push( createClassFromHeaderDisposable, createClassFromJsonDisposable );
     }
 
     private static async loadTemplate(){

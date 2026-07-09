@@ -1,10 +1,8 @@
 import * as vscode from 'vscode';
-import { TextUtils } from '../utils/text-utils';
-import { LuaClassDefinition } from './lua-class-definition';
-import { LuaClass } from '../lua-import-manager/importables/lua-class';
-import { LuaClassCreation } from './lua-class-creation';
-import { WindowUtils } from '../utils/window-utils';
-import { log } from 'console';
+import { TextUtils } from '../../utils/text-utils';
+import { LuaClassDefinition } from './old_lua-class-definition';
+import { LuaClassCreation } from './old_lua-class-creation';
+import { WindowUtils } from '../../utils/window-utils';
 
 export enum CppAccessType { Public, Private, Protected }
 
@@ -33,7 +31,7 @@ export class CppFunctionDefinition {
 }
 
 export class CppArgumentDefinition {
-    constructor( public name: string, public dataType: string, public defaultValue: string | undefined = undefined ) {}
+    constructor( private name: string, private dataType: string, public defaultValue: string | undefined = undefined ) {}
 }
 
 export class CppClassTranslator {
@@ -54,6 +52,11 @@ export class CppClassTranslator {
     }
 
     // #region | Definition Creation
+
+    private static parentClassesToSkip = [
+        "WidgetUserClass",
+        "RefCountClass",
+    ];
 
     public static async createCppClassDefinition( document: vscode.TextDocument, className: string ) : Promise<CppClassDefinition | undefined> {
         const symbols: vscode.DocumentSymbol[] = await vscode.commands.executeCommand( "vscode.executeDocumentSymbolProvider", document.uri );
@@ -217,11 +220,10 @@ export class CppClassTranslator {
                 }
             }
 
-            const parentName = parentText.substring( spaceIndex + 1 );
+            const parentName = parentText.substring( spaceIndex + 1 ).trim();
 
             // Some parent classes aren't helpful in Lua and can be ignored
-            console.log( parentName );
-            if( parentName === "RefCountClass" ){
+            if( this.parentClassesToSkip.indexOf( parentName ) !== -1 ){
                 continue;
             }
             
@@ -251,7 +253,7 @@ export class CppClassTranslator {
         if( isVirtual ) { signature = signature.substring( "virtual ".length ); }
 
         // Find the return type
-        let returnDataType: string | undefined;
+        let returnDataTypeString: string | undefined;
         if( !isConstructor && !isDestructor ) {
             const spaceIndex = signature.indexOf( " " );
             const parenthesisIndex = signature.indexOf( "(" );
@@ -259,7 +261,7 @@ export class CppClassTranslator {
                 console.warn( `Skipping ${className}.${functionName} as it doesn't appear to have a return type` );
                 return;
             }
-            returnDataType = signature.substring( 0, spaceIndex );
+            returnDataTypeString = signature.substring( 0, spaceIndex );
         }
 
         // Arguments
@@ -307,7 +309,7 @@ export class CppClassTranslator {
             }
 
             const argDataTypeIndex = argText.indexOf( " " );
-            const argDataType = argText.substring( 0, argDataTypeIndex );
+            const argDataTypeString = argText.substring( 0, argDataTypeIndex );
 
             // Remove the arg's data type
             argText = argText.substring( argDataTypeIndex + 1 );
@@ -324,18 +326,25 @@ export class CppClassTranslator {
                 argName = argText;
             }
 
-            args.push( new CppArgumentDefinition( argName, argDataType, defaultValue ) );
+            args.push( new CppArgumentDefinition( argName, argDataTypeString, defaultValue ) );
         }
 
-        return new CppFunctionDefinition( isStatic, isVirtual, functionName, args, returnDataType );
+        return new CppFunctionDefinition( isStatic, isVirtual, functionName, args, returnDataTypeString );
     }
 
     public static createCppFieldDefinition( fieldText: string ): CppFieldDefinition {
 
         const isStatic = fieldText.startsWith( "static" );
+        if( isStatic ) {
+            fieldText = TextUtils.removeBeginnings( fieldText, ["static"] ).trim();
+        }
+
+        let isArray: boolean = false;
 
         let fieldName: string = "";
-        let fieldDataType: string = "";
+        let fieldDataTypeString: string = "";
+        let fieldDataType: string|undefined;
+        let defaultValue = "";
 
         // C++ can declare a struct and a field of that struct's type at the same time
         // the format is: struct <name> { <struct fields> } <field name>;
@@ -346,54 +355,43 @@ export class CppClassTranslator {
             if( structNameMatches === undefined || structNameMatches!.length < 2 || structNameMatches === null ){
                 throw new Error( `Unable to find struct name in field: ${fieldText}` );
             }
-            fieldDataType = structNameMatches[1];
+            fieldDataTypeString = structNameMatches[1];
 
             // Get the name of the field that uses this struct as its data type
             const fieldNameMatches = /}\s+(\w+)/g.exec( fieldText );
             if( fieldNameMatches === undefined || fieldNameMatches!.length < 2 || fieldNameMatches === null ){
                 throw new Error( `Unable to find field name in field: ${fieldText}` );
             }
-            fieldName = fieldNameMatches[1];
-        }else{
-            // "Normal" field definitions whose format is:
-            // <data type> <field name>;
-
-            // Remove pointer indicators
-            fieldText = fieldText.replaceAll( /[&*]/g, "" );
-
-            // Remove ending semicolon
-            fieldText = fieldText.substring( 0, fieldText.lastIndexOf( ";" ) );
-
-            // Remove line breaks
-            fieldText = fieldText.replaceAll( "\n", "" );
-
-            // Truncate whitespace to single spaces
-            fieldText = fieldText.replaceAll( /\s{1,}/g, " " );
-
-            // Remove prefixes
-            if( isStatic ) {
-                fieldText = TextUtils.removeBeginnings( fieldText, ["static"] );
-            }
-
-            const lastSpaceIndex = fieldText.lastIndexOf( " " );
-            fieldName = fieldText.substring( lastSpaceIndex ).trim();
-        
-            const arrayBracketIndex = fieldName.indexOf( "[" );
-            const isArray = arrayBracketIndex !== -1;
-            if( isArray ) {
-                // TODO: probaby some kind of array-specific handling here
-                fieldName = fieldName.substring( 0, arrayBracketIndex ).trim();
-            }
-
-            fieldDataType = fieldText.substring( 0, lastSpaceIndex );
+            fieldName = fieldNameMatches[1].trim();
+            fieldDataType = fieldName;
+            return new CppFieldDefinition( isStatic, fieldName, fieldDataType );
         }
 
-        fieldName = fieldName.trim();
-        fieldDataType = fieldDataType.trim();
+        // Remove ending semicolon
+        fieldText = fieldText.substring( 0, fieldText.lastIndexOf( ";" ) );
 
-        console.log( "Creating field for '" + fieldName + "': '" + fieldDataType + "'" );
+        // Remove line breaks
+        fieldText = fieldText.replaceAll( "\n", "" );
 
-        return new CppFieldDefinition( isStatic, fieldName, fieldDataType );
+        // Truncate whitespace to single spaces
+        fieldText = fieldText.replaceAll( /\s{1,}/g, " " );
+
+        // The rightmost "word" should (hopefully) be the name of the field
+        const lastSpaceIndex = fieldText.lastIndexOf( " " );
+        fieldName = fieldText.substring( lastSpaceIndex ).trim();
+
+        // The data type is everything on the left of the field name
+        fieldDataTypeString = fieldText.substring( 0, lastSpaceIndex );
+
+        // Handle the field possibly being an array
+        const arrayBracketIndex = fieldName.indexOf( "[" );
+        isArray = arrayBracketIndex !== -1;
+        if( isArray ){
+            // Don't include square brackets in the field name
+            fieldName = fieldName.substring( 0, arrayBracketIndex - 1 ).trim();
+        }
+
+        return new CppFieldDefinition( isStatic, fieldName, fieldDataTypeString );
     }
     // #endregion
 
