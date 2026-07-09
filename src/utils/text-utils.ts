@@ -20,6 +20,20 @@ export class TextUtils {
     ];
 
     /**
+     * Finds the number of times the needle string occurs in the haystack string
+     */
+    public static count( haystack: string, needle: string ): number {
+        // Remove the needles
+        const haystackMinusNeedles = haystack.replaceAll( needle, "" );
+
+        // Figure out how many total characters were removed
+        const charCountDifference  = haystack.length - haystackMinusNeedles.length;
+
+        // Figure out how many total needles that number of characters implies
+        return charCountDifference / needle.length;
+    }
+
+    /**
      * Replaces any shorthand words with their full and expanded counterparts
      */
     public static expandWords( words: string[] ) : string[] {
@@ -215,7 +229,7 @@ export class TextUtils {
         while( madeChange ){
             madeChange = false;
             
-            for (let beginningIndex = 0; beginningIndex < beginnings.length; beginningIndex++) {
+            for( let beginningIndex = 0; beginningIndex < beginnings.length; beginningIndex++ ){
                 const beginning = beginnings[beginningIndex];
                 if( result.startsWith( beginning ) ){
                     result = result.substring( beginning.length );
