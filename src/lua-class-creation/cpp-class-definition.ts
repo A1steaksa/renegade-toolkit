@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { TextUtils } from '../utils/text-utils';
+import { ErrorUtils } from '../utils/error-utils';
 
 /**
  * A representation of a C++ class's parsed header
@@ -26,7 +27,7 @@ export class CppClassDefinition {
 
         // Parse the symbol lists into our internal CPP classes
         const cppFields = CppField.fromSymbols( headerDocument, childSymbolLists.FieldSymbols );
-        
+        const cppFunctions = CppFunction.fromSymbols( headerDocument, childSymbolLists.FunctionSymbols );
     }
 
     /**
@@ -192,6 +193,9 @@ export class CppField {
 }
 
 export class CppDataType {
+
+    public static Void = new CppDataType( "void" );
+
     public constructor(
         public Name: string,
         public Generics: CppDataType[]|undefined = undefined
@@ -278,22 +282,545 @@ export class CppDataType {
     }
 }
 
-class CppFunction {
+export class CppFunction {   
     public constructor(
-        Access: CppAccessType,
-        IsVirtual: boolean = false,
-        IsInline: boolean = false,
-        Return: CppDataType = new CppDataType( "void" ),
-        Name: string,
-        Arguments: CppArgument[],
-        IsConst: boolean = false
+        public IsStatic: boolean = false,
+        public IsVirtual: boolean = false,
+        public IsInline: boolean = false,
+        public isConstructor: boolean = false,
+        public isDestructor: boolean = false,
+        public Return: CppDataType = CppDataType.Void,
+        public Name: string,
+        public Arguments: CppArgument[],
+        public IsConst: boolean = false
     ){}
+
+    public static fromSymbols( headerDocument: vscode.TextDocument, fields: vscode.DocumentSymbol[] ): CppFunction[] {
+        const cppFunctions: CppFunction[] = [];
+
+        for( let functionIndex = 0; functionIndex < fields.length; functionIndex++ ){
+            const functionSymbol = fields[functionIndex];
+            const functionText = headerDocument.getText( functionSymbol.range );
+            cppFunctions.push( this.fromString( functionText ) );
+        }
+
+        return cppFunctions;
+    }
+
+    public static fromString( functionString: string ): CppFunction {
+
+        let isStatic = false;
+        let isVirtual = false;
+        let isInline = false;
+        let isConstructor = false;
+        let isDestructor = false;
+        let isConst = false;
+
+        let returnType: CppDataType|undefined;
+        let functionName: string|undefined;
+        let args: CppArgument[] = [];
+
+        // Get rid of pointer syntax
+        functionString = functionString.replace( "*", "" ).trim();
+        functionString = functionString.replace( "&", "" ).trim();
+
+        // For our purposes here we don't need the body of the function if one is provided
+        const bodyStartIndex = functionString.indexOf( "{" );
+        if( bodyStartIndex !== -1 ){
+            functionString = functionString.substring( 0, bodyStartIndex ).trim();
+        }
+
+        // Remove any trailing semicolon(s)
+        functionString = TextUtils.removeEnding( functionString, ";" ).trim();
+
+        let tokens: string[] = [];
+        let currentToken = "";
+
+        // State tracking
+        let inArguments = false; // Are we in the arguments portion of the function declaration?
+        let inString = false; // Are we within a string literal?
+        let genericDepth = 0; // How many '<' have we seen that haven't yet had a matching '>'?
+        let isEscaping = false; // Did we just see a '\'?
+
+        for( let charIndex = 0; charIndex < functionString.length; charIndex++ ){
+            const char = functionString[charIndex];
+            
+            switch( char ){
+
+                // Whitespace
+                case "\t":
+                case " ": {
+                    // Whitespace in arguments is just part of the token
+                    if( inArguments ){
+                        currentToken += char;
+                        break;
+                    }
+
+                    // Check if the current token is a keyword
+                    switch( currentToken ){
+                        case "static": {
+                            isStatic = true;
+                            currentToken = "";
+                            break;
+                        }
+
+                        case "WWINLINE":
+                        case "inline": {
+                            isInline = true;
+                            currentToken = "";
+                            break;
+                        }
+
+                        case "virtual": {
+                            isVirtual = true;
+                            currentToken = "";
+                            break;
+                        }
+
+                        case "const": {
+                            isConst = true;
+                            currentToken = "";
+                            break;
+                        }
+
+                        default: {
+                            // During generics and arguments, treat spaces as just part of the token
+                            if( genericDepth !== 0 || inArguments ){
+                                currentToken += char;
+                                break;
+                            }
+                            
+                            // Whitespace is a keyword separator if there's a token in progress
+                            currentToken = currentToken.trim();
+                            if( currentToken.length !== 0 ){
+                                tokens.push( currentToken );
+                                currentToken = "";
+                            }
+                        }
+                    }
+                    break;
+                }
+
+                // Escape character
+                case "\\": {
+
+                    // We might be escaping an escape character
+                    if( isEscaping ){
+                        // Escaping an escape character only makes sense inside of strings
+                        if( inString ){
+                            currentToken += char;
+                            break;
+                        }
+
+                        ErrorUtils.unexpectedChar( char, charIndex, functionString );
+                    }else{
+                        isEscaping = true;
+                    }
+
+                    break;
+                }
+
+                case "\"": {
+
+                    if( inString ){
+
+                        // Escape characters let us treat '"' within strings as part of the token
+                        if( isEscaping ){
+                            currentToken += char;
+                            break;
+                        }
+
+                        inString = false;
+                    }else{
+                        inString = true;
+                    }
+
+                }
+
+                // Generic start
+                case "<": {
+
+                    if( inString ){
+                        currentToken += char;
+                        break;
+                    }
+
+                    genericDepth++;
+                    currentToken += char;
+                    break;
+                }
+
+                // Generic end
+                case ">": {
+
+                    if( inString ){
+                        currentToken += char;
+                        break;
+                    }
+
+                    genericDepth--;
+                    currentToken += char;
+                    break;
+                }
+
+                // Argument or generic separator
+                case ",": {
+
+                    // Generics are sepearated by commas and are treated like a single, long token
+                    // Default argument values can be strings which contain commas
+                    if( genericDepth !== 0 || inString ){
+                        currentToken += char;
+                        break;
+                    }
+                    
+                    // Each argument is a single long token separated by commas
+                    if( inArguments ){
+
+                        const cppArgument = CppArgument.fromString( currentToken );
+                        // The argument might have been void
+                        if( cppArgument !== undefined ){
+                            args.push( cppArgument );
+                        }
+                        
+                        currentToken = "";
+
+                        break;
+                    }
+
+                    // I don't know if there's a legitimate place for a comma in function declarations outside of the above cases
+                    ErrorUtils.unexpectedChar( char, charIndex, functionString );
+
+                    break;
+                }
+
+                // The start of the function's arguments
+                case "(": {
+                    if( inArguments ){
+                        ErrorUtils.unexpectedChar( char, charIndex, functionString );
+                    }
+
+                    inArguments = true;
+
+                    // The function name might be in the current token so just put it on the token stack
+                    // so the following code knows where it is
+                    if( currentToken.length !== 0 ){
+                        tokens.push( currentToken );
+                        currentToken = "";
+                    }
+
+                    // Only one token means no return value
+                    // No return value means either a constructor or a malformed function
+                    if( tokens.length === 1 ){
+                        functionName = tokens[0];
+
+                        // Destructors are identical to constructors but with a '~' prefix to their name
+                        if( functionName.startsWith( "~" ) ){
+                            isDestructor = true;
+                        }else{
+                            isConstructor = true;
+                        }
+
+                        returnType = CppDataType.Void;
+
+                    // We should have a return value on the token stack
+                    }else{
+                        functionName = tokens[1];
+
+                        const returnTypeString = tokens[0];
+                        returnType = CppDataType.fromString( returnTypeString );
+                    }
+
+
+                    // // The token prior to the function name is always the return type
+                    // const returnTypeString = tokens[tokens.length - 1];
+                    // returnType = CppDataType.fromString( returnTypeString );
+                    
+                    break;
+                }
+
+                // The end of the function's arguments
+                case ")": {
+                    if( !inArguments ){
+                        ErrorUtils.unexpectedChar( char, charIndex, functionString );
+                    }
+
+                    currentToken = currentToken.trim();
+                    
+                    // There may not be any arguments
+                    if( currentToken.length === 0 ){
+                        break;
+                    }
+
+                    // The final argument should be the current token
+                    const cppArgument = CppArgument.fromString( currentToken );
+
+                    // The argument might have been void
+                    if( cppArgument !== undefined ){
+                        args.push( cppArgument );
+                    }
+
+                    currentToken = "";
+
+                    inArguments = false;
+                    break;
+                }
+
+                default: {
+                    currentToken += char;
+                    break;
+                }
+            }
+        }
+
+        // The final part of the function declaration might be the "const" keyword
+        if( currentToken === "const" ){
+            isConst = true;
+            currentToken = "";
+        }
+
+        if( functionName === undefined ){
+            const errorMessage = `Unable to determine function name from '${functionString}'`;
+            console.error( errorMessage );
+            throw Error( errorMessage );
+        }
+
+        return new CppFunction( isStatic, isVirtual, isInline, isConstructor, isDestructor, returnType, functionName, args, isConst );
+    }
 }
 
 class CppArgument {
+
     public constructor(
         public IsConst: boolean = false,
         public Name: string,
-        public DataType: CppDataType
+        public DataType: CppDataType,
+        public ArrayDepth: number = 0,
+        public Default: string|undefined,
     ){}
+
+    /**
+     * @param argString 
+     * @return Either an argument or undefined if the argument was void
+     */
+    public static fromString( argString: string ): CppArgument|undefined {
+        // Handle void early
+        if( argString === "void" ){
+            return;
+        }
+
+        argString = argString.trim();
+        
+        let isConst = false;
+        let argName: string|undefined;
+        let dataType: CppDataType|undefined;
+        let arrayDepth: number|undefined;
+        let defaultValue: string|undefined;
+
+        let tokens: string[] = [];
+        let currentToken = "";
+
+        // State tracking
+        let genericDepth = 0; // How many '<' have we seen that haven't yet had a matching '>'?
+        let inString = false; // Have we seen a '"' but haven't yet seen a second '"'?
+        let inArray = false; // Have we seen a '[' but haven't yet seen a ']'?
+        let hasDefault = false;
+
+        for( let charIndex = 0; charIndex < argString.length; charIndex++ ){
+            const char = argString[charIndex];
+
+            switch( char ){
+                
+                case " ": {
+                    // Strings can contain ' '
+                    if( inString ){
+                        currentToken += char;
+                        break;
+                    }
+
+                    // Spaces in generics are just part of their token
+                    if( genericDepth !== 0 ){
+                        currentToken += char;
+                        break;
+                    }
+
+                    if( currentToken === "const" ){
+                        isConst = true;
+                        currentToken = "";
+                        break;
+                    }
+
+                    // By default spaces are token separators
+                    currentToken = currentToken.trim();
+                    if( currentToken.length !== 0 ){
+                        tokens.push( currentToken );
+                        currentToken = "";
+                        break;
+                    }
+
+                    break;
+                }
+
+                case "\"": {
+
+                    if( inString ){
+                        inString = false;
+
+                        tokens.push( currentToken );
+                        currentToken = "";
+                    }else{
+                        inString = true;
+                    }
+
+                    break;
+                }
+
+                case "<": {
+                    // Strings can contain '<'
+                    if( inString ){
+                        currentToken += char;
+                        break;
+                    }
+
+                    genericDepth++;
+                    currentToken += char;
+                    break;
+                }
+
+                case ">": {
+                    // Strings can contain '>'
+                    if( inString ){
+                        currentToken += char;
+                        break;
+                    }
+
+                    genericDepth--;
+                    currentToken += char;
+                    break;
+                }
+
+                case "[": {
+                    // Strings can contain '['
+                    if( inString ){
+                        currentToken += char;
+                        break;
+                    }
+
+                    inArray = true;
+
+                    if( arrayDepth === undefined ){
+                        arrayDepth = 1;
+                    }else{
+                        arrayDepth++;
+                    }
+
+                    // The first array syntax always comes right after the argument name
+                    if( arrayDepth === 1 ){
+                        currentToken = currentToken.trim();
+                        if( currentToken.length === 0 ){
+                            argName = tokens[tokens.length - 1];
+                            
+                            const dataTypeString = tokens[tokens.length - 2];
+                            dataType = CppDataType.fromString( dataTypeString );
+                        }else{
+                            argName = currentToken;
+                            currentToken = "";
+    
+                            const dataTypeString = tokens[tokens.length - 1];
+                            dataType = CppDataType.fromString( dataTypeString );
+                        }
+                    }
+
+
+                    break;
+                }
+
+                case "]": {
+                    // Strings can contain ']'
+                    if( inString ){
+                        currentToken += char;
+                        break;
+                    }
+
+                    if( !inArray ){
+                        ErrorUtils.unexpectedChar( char, charIndex, argString );
+                    }
+
+                    inArray = false;
+
+                    break;
+                }
+
+                case "=": {
+                    // Strings can contain '='
+                    if( inString ){
+                        currentToken += char;
+                        break;
+                    }
+
+                    if( hasDefault ){
+                        ErrorUtils.unexpectedChar( char, charIndex, argString );
+                    }
+                    
+                    // If there's a token in progress, it's the parameter name
+                    currentToken = currentToken.trim();
+                    if( currentToken.length !== 0 ){
+                        tokens.push( currentToken );
+                        currentToken = "";
+                        break;
+                    }
+
+                    // Outside of string literals, '=' only appears when defining a default value for an optional argument
+                    hasDefault = true;
+                    break;
+                }
+
+                default: {
+                    currentToken += char;
+                }
+            }
+        }
+
+        // The last token won't be on the tokens stack if there wasn't whitespace after it
+        currentToken = currentToken.trim();
+        if( currentToken.length !== 0 ){
+            tokens.push( currentToken );
+            currentToken = "";
+        }
+
+        // If nothing in the declaration already told us the name and data type,
+        // we can infer their positions in the token stack
+        if( argName === undefined && dataType === undefined ){
+            if( hasDefault ){
+                defaultValue = tokens[tokens.length - 1];
+                argName = tokens[tokens.length - 2];
+    
+                const dataTypeString = tokens[tokens.length - 3];
+                dataType = CppDataType.fromString( dataTypeString );
+    
+            }else{
+
+                // Arguments might not have names when they're required by an interface but aren't actually used
+                if( tokens.length === 1 ){
+                    // Pretend this argument doesn't exist
+                    return undefined;
+                }
+                
+                argName = tokens[tokens.length - 1];
+                const dataTypeString = tokens[tokens.length - 2];
+                dataType = CppDataType.fromString( dataTypeString );
+            }
+        }
+
+
+        if( argName === undefined ){
+            ErrorUtils.error( `Unable to determine argument name from '${argString}'` );
+        }
+
+        if( dataType === undefined ){
+            ErrorUtils.error( `Unable to determine argument data type from '${argString}'` );
+        }
+
+        return new CppArgument( isConst, argName, dataType, arrayDepth, defaultValue );
+    }
+
 }
