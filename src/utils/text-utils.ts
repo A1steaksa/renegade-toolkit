@@ -206,16 +206,27 @@ export class TextUtils {
         while( madeChange ){
             madeChange = false;
             
-            for (let endingIndex = 0; endingIndex < endings.length; endingIndex++) {
+            for( let endingIndex = 0; endingIndex < endings.length; endingIndex++) {
                 const ending = endings[endingIndex];
                 if( result.endsWith( ending ) ){
-                    result = result.substring( 0, result.length - ending.length );
+                    result = this.removeEnding( result, ending );
                     madeChange = true;
                 }
             }
         }
 
         return result;
+    }
+
+    /**
+     * Removes a string from the end of an input string
+     */
+    public static removeEnding( input: string, ending: string ): string {
+        if( input.endsWith( ending ) ){
+            return input.substring( 0, input.length - ending.length );
+        }
+
+        return input;
     }
 
     /**
