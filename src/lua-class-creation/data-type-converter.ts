@@ -1,10 +1,9 @@
 import { LuaImportManager } from "../lua-import-manager/import-manager";
 import { LuaImportableCache } from "../lua-import-manager/importable-class-cache";
 import { TextUtils } from "../utils/text-utils";
-import { LuaDataType } from "./old/old_lua-class-definition";
+import { LuaDataType } from "./lua-classes/lua-data-type";
 
 export class CppToLuaTypeConverter {
-
 
     private static simpleTypeNameConversions: { [cppTypeName: string]: string } = {
         "bool": "boolean",
@@ -35,7 +34,7 @@ export class CppToLuaTypeConverter {
                 var subTypeString = dataTypeString.substring( leftBracketIndex + 1, rightBracketIndex - 1 ).trim();
 
                 // Dynamic Vectors are basically just arrays
-                return new LuaDataType( subTypeString, 1 );
+                return new LuaDataType( subTypeString );
             }
         },
         {
@@ -89,7 +88,6 @@ export class CppToLuaTypeConverter {
         // Otherwise, use less complicated conversions
 
         let luaDataTypeName: string|undefined = undefined;
-        let arrayDepth = 0;
 
         // Use a simple type conversion if one is defined
         const hasSimpleConversion = this.simpleTypeNameConversions[cppDataType] !== undefined;
@@ -127,6 +125,6 @@ export class CppToLuaTypeConverter {
 
         }
 
-        return new LuaDataType( luaDataTypeName, arrayDepth );
-    }
+        return luaDataTypeName;
+    }    
 }

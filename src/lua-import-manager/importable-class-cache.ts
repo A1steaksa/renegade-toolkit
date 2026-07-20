@@ -61,7 +61,7 @@ export class LuaImportableCache {
         const results: LuaEnum[] = [];
 
         // Try verbatim
-        const verbatimResult = this.getLuaEnumByName( lowerName );
+        const verbatimResult = LuaImportableCache.getLuaEnumByName( lowerName );
         if( verbatimResult !== undefined ){
             results.push( verbatimResult );
         }

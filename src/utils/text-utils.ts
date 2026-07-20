@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { ErrorUtils } from './error-utils';
 
 export class TextUtils {
     private static cppShorthandExpander: Record<string, string> = {
@@ -15,9 +16,38 @@ export class TextUtils {
         "Ptr"   : "Pointer"
     };
 
-    private static customWords: string[] = [
-        "WW3D"
-    ];
+    public static isLowerCase( char: string ): boolean {
+        const charInt = char.charCodeAt( 0 );
+        if( charInt === undefined ){
+            return false;
+        }
+        return (
+               charInt >= 97  // a
+            && charInt <= 122 // z
+        );
+    }
+
+    public static isUpperCase( char: string ): boolean {
+        const charInt = char.charCodeAt( 0 );
+        if( charInt === undefined ){
+            return false;
+        }
+        return (
+               charInt >= 65 // A
+            && charInt <= 90 // Z
+        );
+    }
+
+    public static isNumber( char: string ): boolean {
+        const charInt = char.charCodeAt( 0 );
+        if( charInt === undefined ){
+            return false;
+        }
+        return (
+               charInt >= 48 // 0
+            && charInt <= 57 // 9
+        );
+    }
 
     /**
      * Finds the number of times the needle string occurs in the haystack string
@@ -54,56 +84,145 @@ export class TextUtils {
         return ( expandedWord !== undefined ? expandedWord : word );
     }
 
-    /** Converts a C++ identifier (class, function, field) to the format expected by Lua */
-    public static cppNameToLua( cppName: string ): string{
-        const expandedWords: string[] = [];
+    /**
+     * Splits a name into a table of words
+     */
+    public static splitName( cppName: string ): string[] {
+        const tokens: string[] = [];
+        let currentToken = "";
 
-        // C++ names are a weird mix of underscore delimited and CamelCase
-        // so they must be split multiple times in different ways
-        const nameSegments = cppName.split( "_" );
-        for (let underscoreIndex = 0; underscoreIndex < nameSegments.length; underscoreIndex++) {
-            const nameSegment = nameSegments[underscoreIndex];
-            
-            // Underscore-separated words can be:
-            // * One ALLCAPS acronym
-            // * One Capitalized word
-            // * Several CamelCase words
+        for( let charIndex = 0; charIndex < cppName.length; charIndex++ ){
+            const previousChar: string = cppName[charIndex - 1] || "";
+            const char: string         = cppName[charIndex];
+            const nextChar: string     = cppName[charIndex + 1] || "";
 
-            // Also catches if it's all numbers, probably
-            const isAllCaps = nameSegment === nameSegment.toUpperCase();
+            if( this.isNumber( char ) ){
 
-            if( isAllCaps ){
-                expandedWords.push( nameSegment );
-            }else{
-                const camelCaseSplit = TextUtils.splitCamelCase( nameSegment );
-
-                if( camelCaseSplit.length !== 0 ){
-                    const expandedCamelCaseWords = this.expandWords( camelCaseSplit );
-    
-                    for( let camelCaseIndex = 0; camelCaseIndex < expandedCamelCaseWords.length; camelCaseIndex++ ){
-                        const expandedWord = expandedCamelCaseWords[camelCaseIndex];
-                        expandedWords.push( expandedWord );
-                    }
-                }else{
-                    // Some name segments might not be CamelCase
-                    const expandedSegment = this.expandWord( nameSegment );
-                    expandedWords.push( expandedSegment );
+                // A number after a lowercase letter is a new token
+                if( this.isLowerCase( previousChar ) ){
+                    tokens.push( currentToken );
+                    currentToken = char;
+                    continue;
                 }
+                
+                currentToken += char;
+            }else if( this.isLowerCase( char ) ){
+                currentToken += char;
+            }else if( this.isUpperCase( char ) ){
+
+                // Check for "2D" and "3D"
+                if( char === "D" ){
+                    if( previousChar === "2" || previousChar === "3" ){
+                        // Make sure this "D" isn't the start of a word like "Definition"
+                        if( !this.isLowerCase( nextChar ) ){
+                            if( currentToken === "2" || currentToken === "3" ){
+                                currentToken += "d";
+                                tokens.push( currentToken );
+                                currentToken = "";
+                                continue;
+                            }
+                        }
+                    }
+                }
+
+                // If the next character is lowercase, this is the start of a capitalized word
+                if( this.isLowerCase( nextChar ) ){
+                    if( currentToken.length !== 0 ){
+                        tokens.push( currentToken );
+                        currentToken = char;
+                        continue;
+                    }
+                }
+
+                // Consecutive uppercase characters get lowercased so they're more clearly a separate "word"
+                if( this.isUpperCase( previousChar ) && !this.isLowerCase( nextChar ) ){
+                    currentToken += char;
+                    continue;
+                }
+
+                currentToken += char;
+            }else{
+                ErrorUtils.error( `Found weird char '${char}' at index ${charIndex} in '${cppName}'` );
             }
         }
 
-        // Correct capitalization
-        // We don't want consecutive capital letters for acronyms like "HUD"
-        // Instead, we want to capitalize them as words like "Hud"
-        const capitalizedWords: string[] = [];
-        for( let wordIndex = 0; wordIndex < expandedWords.length; wordIndex++ ){
-            const word = expandedWords[wordIndex];
-            const capitalizedWord = TextUtils.capitalize( word.toLowerCase() );
-            capitalizedWords.push( capitalizedWord );
+        // Push the final token if one is left over
+        if( currentToken.length !== 0 ){
+            tokens.push( currentToken );
+            currentToken = "";
         }
 
-        return capitalizedWords.join( "" );
+        return tokens;
     }
+
+    /**
+     * Convert a C++ class name to its equivalent in Lua's naming convention
+     */
+    public static cppNameToLua( cppName: string ): string{
+        // We don't want C++'s "Class" suffixes because we'll be adding our own suffixes later
+        cppName = TextUtils.removeEnding( cppName.trim(), "Class" );
+        
+        let tokens = this.splitName( cppName );
+
+        let luaName = "";
+        for( let key in tokens ){
+            let word = this.expandWord( tokens[key] );
+            luaName += this.capitalize( word.toLowerCase() );
+        }
+
+        return luaName;
+    }
+
+    /** Converts a C++ identifier (class, function, field) to the format expected by Lua */
+    // public static cppNameToLua( cppName: string ): string {
+    //     const expandedWords: string[] = [];
+
+    //     // C++ names are a weird mix of underscore delimited and CamelCase
+    //     // so they must be split multiple times in different ways
+    //     const nameSegments = cppName.split( "_" );
+    //     for (let underscoreIndex = 0; underscoreIndex < nameSegments.length; underscoreIndex++) {
+    //         const nameSegment = nameSegments[underscoreIndex];
+            
+    //         // Underscore-separated words can be:
+    //         // * One ALLCAPS acronym
+    //         // * One Capitalized word
+    //         // * Several CamelCase words
+
+    //         // Also catches if it's all numbers, probably
+    //         const isAllCaps = nameSegment === nameSegment.toUpperCase();
+
+    //         if( isAllCaps ){
+    //             expandedWords.push( nameSegment );
+    //         }else{
+    //             const camelCaseSplit = TextUtils.splitCamelCase( nameSegment );
+
+    //             if( camelCaseSplit.length !== 0 ){
+    //                 const expandedCamelCaseWords = this.expandWords( camelCaseSplit );
+    
+    //                 for( let camelCaseIndex = 0; camelCaseIndex < expandedCamelCaseWords.length; camelCaseIndex++ ){
+    //                     const expandedWord = expandedCamelCaseWords[camelCaseIndex];
+    //                     expandedWords.push( expandedWord );
+    //                 }
+    //             }else{
+    //                 // Some name segments might not be CamelCase
+    //                 const expandedSegment = this.expandWord( nameSegment );
+    //                 expandedWords.push( expandedSegment );
+    //             }
+    //         }
+    //     }
+
+    //     // Correct capitalization
+    //     // We don't want consecutive capital letters for acronyms like "HUD"
+    //     // Instead, we want to capitalize them as words like "Hud"
+    //     const capitalizedWords: string[] = [];
+    //     for( let wordIndex = 0; wordIndex < expandedWords.length; wordIndex++ ){
+    //         const word = expandedWords[wordIndex];
+    //         const capitalizedWord = TextUtils.capitalize( word.toLowerCase() );
+    //         capitalizedWords.push( capitalizedWord );
+    //     }
+
+    //     return capitalizedWords.join( "" );
+    // }
 
     public static enumToString<T extends object>(enumObj: T, value: number): string | undefined {
         return Object.entries(enumObj)

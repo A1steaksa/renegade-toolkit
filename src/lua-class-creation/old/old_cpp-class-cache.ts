@@ -3,6 +3,7 @@ import { Module } from '../../module';
 import { CompressedCppClassFiles, CppClassFiles } from './old_cpp-class-files';
 import { ConfigUtils } from '../../utils/config-utils';
 import { FileUtils } from '../../utils/file-utils';
+import { runClassTests } from '../../extension';
 
 
 export class CppClassCache extends Module {

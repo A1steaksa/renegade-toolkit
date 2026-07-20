@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import { Module } from '../module';
 import { WindowUtils } from '../utils/window-utils';
-import { CppClassDefinition } from './cpp-class-definition';
-import { JsonClassDefinition } from './json-class-definition';
+import { LuaClass } from './json-class-definition';
 import { CppClassCache } from './old/old_cpp-class-cache';
+import { CppClass } from './cpp-classes/cpp-class';
 
 /**
  * Tools for converting C++ class headers into JSON class definitions,
@@ -45,10 +45,14 @@ export class ClassTranslator implements Module {
         }
        
         // Create a CPP class definition from the header
-        const cppClassDefinition = await CppClassDefinition.read( headerDocument, className );
+        const cppClassDefinition = await CppClass.read( headerDocument, className );
 
         // Convert the CPP class definition into a JSON class definition
-        const jsonClassDefinition = JsonClassDefinition.from( cppClassDefinition );
+        const jsonClassDefinition = LuaClass.fromCpp( cppClassDefinition );
+
+
+        return;
+
 
         // Save the JSON class definition
         const saveLocation = await jsonClassDefinition.write( undefined );
