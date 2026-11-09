@@ -291,10 +291,14 @@ export class CppClassTranslator {
         let genericStartIndex = argsText.indexOf( "<" );
         let genericEndIndex = argsText.indexOf( ">" );
         if( genericStartIndex !== -1 || genericEndIndex !== -1 ){
-            console.warn( "UNHANDLED GENERIC ARGUMENT: " );
-            console.warn( "Original: " + originalArgsText );
-            console.warn( "CURRENT: " + argsText );
-            throw new Error( "UNHANDLED GENERIC ARGUMENT: \n" + argsText );
+
+            // For now, just strip the generic off
+            argsText = argsText.substring( 0, genericStartIndex );
+
+            // console.warn( "UNHANDLED GENERIC ARGUMENT: " );
+            // console.warn( "Original: " + originalArgsText );
+            // console.warn( "CURRENT: " + argsText );
+            // throw new Error( "UNHANDLED GENERIC ARGUMENT: \n" + argsText );
         }
 
         // Create objects for each argument
