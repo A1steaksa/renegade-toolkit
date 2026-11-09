@@ -3,6 +3,7 @@ import fs from 'fs';
 import { TextUtils } from '../utils/text-utils';
 import { CppClassDefinition, CppClassParentDefinition, CppFieldDefinition, CppFunctionDefinition } from './cpp-class-translator';
 import { FileUtils } from '../utils/file-utils';
+import { LuaImportableCache } from '../lua-import-manager/importable-class-cache';
 
 export class LuaClassRealm { 
     constructor( public Fields: LuaField[], public Functions: ( LuaFunction | LuaFunctionSection )[] ){
@@ -326,21 +327,75 @@ export class LuaClassDefinition {
         }
 
         private static typeConversion: { [cppTypeName: string]: string } = {
-            // C++  : Lua
-            "bool"  : "boolean",
-            "int"   : "integer",
-            "float" : "number",
+            // C++             : Lua
+            "bool"             : "boolean",
+            "BYTE"             : "integer",
+            "unsigned"         : "integer",
+            "long"             : "integer",
+            "float"            : "number",
+            "char"             : "string",
+            "WideStringClass"  : "string",
+            "StringClass"      : "string",
+            "Vector3"          : "Vector",
+            "Vector2"          : "Vector",
+            "GameObjReference" : "ScriptableGameObjectInstance",
         };
 
         private static cppDataTypeToLua( cppTypeName: string ): string {
             
-            let simpleConversion = this.typeConversion[cppTypeName];
+            // We don't have unsigned data types
+            let cleanedCppTypeName = cppTypeName.replaceAll( /unsigned\s+/g, "" );
 
-            if( simpleConversion !== null ){
+            cleanedCppTypeName = cleanedCppTypeName.replaceAll( " ", "" );
+
+            // Use a simple static conversion if one exists
+            let simpleConversion = this.typeConversion[cleanedCppTypeName];
+            if( simpleConversion !== undefined ){
                 return simpleConversion;
             }
 
-            return cppTypeName;
+            // Handle various integer types
+            const intPattern = /u?int[0-9]+/i;
+            if( intPattern.test( cleanedCppTypeName ) ){
+                return "integer";
+            }
+
+            // DynamicVectorClass is just a Lua table
+            if( cleanedCppTypeName.startsWith( "DynamicVectorClass" ) ){
+                // Extract the data type from within the C++ generic '<' and '>'
+                const genericStartIndex = cleanedCppTypeName.indexOf( "<" );
+                const genericEndIndex = cleanedCppTypeName.lastIndexOf( ">" );
+                if( genericStartIndex === -1 || genericEndIndex === -1 ){
+                    console.error( "Found non-generic DynamicVectorClass: '", cppTypeName, "'" );
+                    return "ERROR!";
+                }
+                const cppTableType = cleanedCppTypeName.substring( genericStartIndex + 1, genericEndIndex );
+
+                // Make sure the table's type gets converted
+                const luaTableType = this.cppDataTypeToLua( cppTableType );
+
+                return `${luaTableType}[]`;
+            }
+
+
+            let expandedTypeName = TextUtils.cppNameToLua( cleanedCppTypeName );
+            if( expandedTypeName.endsWith( "Class" ) ){
+                expandedTypeName = expandedTypeName.substring( 0, expandedTypeName.length - "Class".length );
+            }
+
+            // Check to see if this might be an enum or struct name and use that name if it is
+            let luaEnum = LuaImportableCache.getLuaEnumByName( expandedTypeName );
+            if( luaEnum !== undefined ){
+                return luaEnum.getStaticName();
+            }
+
+            let luaClass = LuaImportableCache.getLuaClassByName( expandedTypeName );
+            if( luaClass !== undefined ){
+                return luaClass.getInstanceName();
+            }
+
+            expandedTypeName += "Instance";
+            return expandedTypeName;
         }
 
         private static cppFieldNameToLua( cppFieldName: string ): string {
