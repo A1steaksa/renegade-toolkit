@@ -58,6 +58,16 @@
                 "title": "Switch to Lua",
                 "icon": "./resources/switch-to-lua-icon.svg",
                 "enablement": "renegade-toolkit.enableSwitchToLua"
+            },
+            {
+                "command": "renegade-toolkit.jumpToCppFunction",
+                "title": "Jump to Original C++ Function",
+                "icon": "./resources/switch-to-c-icon.svg"
+            },
+            {
+                "command": "renegade-toolkit.jumpToLuaFunction",
+                "title": "Jump to Ported Lua Function",
+                "icon": "./resources/switch-to-lua-icon.svg"
             }
         ],
         "menus": {
