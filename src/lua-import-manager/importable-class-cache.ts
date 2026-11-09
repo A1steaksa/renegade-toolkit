@@ -19,6 +19,14 @@ export class LuaImportableCache {
         this.importableEnums = this.importableEnums.concat( luaImportableEnums );
     }
 
+    public static doesLuaClassExist( className: string ): boolean {
+        return LuaImportableCache.getLuaClassByName( className ) !== undefined;
+    }
+
+    public static doesLuaEnumExist( enumName: string ): boolean {
+        return LuaImportableCache.getLuaEnumByName( enumName ) !== undefined;
+    }
+
     public static getLuaClassByName( className: string ): LuaClass | undefined {
         className = className.toLowerCase();
 
