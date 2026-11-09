@@ -12,12 +12,11 @@ export class TextUtils {
         "Proto" : "Prototype",
         "Alloc" : "Allocate",
         "Prev"  : "Previous",
-        "Ptr"   : "Pointer"
+        "Ptr"   : "Pointer",
+        "Vis"   : "Visibility",
+        "Dlg"   : "Dialog",
+        "Curr"  : "Current",
     };
-
-    private static customWords: string[] = [
-        "WW3D"
-    ];
 
     /**
      * Replaces any shorthand words with their full and expanded counterparts
